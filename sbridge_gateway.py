@@ -36,23 +36,45 @@ while True:
 	print ("Writing: ",  commandToSend)
 	ser.write(commandToSend)
 	time.sleep(1)
-	while True:
-		try:
-			print ("Attempt to Read")
-			while ser.inWaiting() != 0:
-				print(ser.inWaiting())
-			#readOut = ser.readline(ser.inWaiting())
-			#time.sleep(2)
-			#while (ser.inWaiting()==0):
-			#	pass
-				readOut = ser.readline()
-				time.sleep(1)
-				print ("Reading: ", readOut) 
-				time.sleep(2)
-			print("read all data")
-			break
-        	except:
-			#ser.close()
-            		sys.exit(0)
-    	print ("Restart")
-    	ser.flush() #flush the buffer
+	#while True:
+		#try:
+	print ("Attempt to Read remote list")
+	readOut = ""
+	while ser.inWaiting() != 0:
+		print(ser.inWaiting())
+		#readOut = ser.readline(ser.inWaiting())
+		#time.sleep(2)
+		#while (ser.inWaiting()==0):
+		#	pass
+		readOut = ser.readline() + readOut
+		# first line should return # of tags detected
+		time.sleep(1)
+		print ("Reading: ", readOut) 
+		time.sleep(2)
+	print("read all data")
+	splitout = readOut.split()
+	print(splitout)
+	print(len(splitout))
+	numTagsFound = splitout[len(splitout)-1]
+	print(numTagsFound)
+
+	tagsNum = []
+	tagsDist = []
+	# loop through the number of tags in the list
+	#splitout.pop(len(splitout))
+	print(splitout)
+	#print(range(numTagsFound))
+	for i in range(int(numTagsFound)):
+		print(i)
+		tagsNum.append(splitout[len(splitout)-2*i-3])
+		tagsDist.append(splitout[len(splitout)-2*i-2])
+		#tagsNum.append(splitout[1])
+		#tagsDist.append(splitout[2])
+	print("tagsNum = " + str(tagsNum))
+	print("tagsDist = " + str(tagsDist))
+#	break
+#except:
+#	#ser.close()
+#	sys.exit(0)
+print ("Restart")
+ser.flush() #flush the buffer
