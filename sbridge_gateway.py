@@ -36,21 +36,16 @@ while True:
 	print ("Writing: ",  commandToSend)
 	ser.write(commandToSend)
 	time.sleep(1)
-	#while True:
-		#try:
+
 	print ("Attempt to Read remote list")
 	readOut = ""
 	while ser.inWaiting() != 0:
 		print(ser.inWaiting())
-		#readOut = ser.readline(ser.inWaiting())
-		#time.sleep(2)
-		#while (ser.inWaiting()==0):
-		#	pass
 		readOut = ser.readline() + readOut
 		# first line should return # of tags detected
 		time.sleep(1)
 		print ("Reading: ", readOut)
-		time.sleep(2)
+
 	print("read all data")
 	splitout = readOut.split()
 	print(splitout)
@@ -66,9 +61,6 @@ while True:
 		tagsNum = []
 		tagsDist = []
 		# loop through the number of tags in the list
-		#splitout.pop(len(splitout))
-		print(splitout)
-		#print(range(numTagsFound))
 		for i in range(int(numTagsFound)):
 			print(i)
 			tagsNum.append(splitout[len(splitout)-2*i-3])
@@ -91,9 +83,5 @@ while True:
 			ser.write("remote disconnect")
 			time.sleep(1)
 
-#	break
-#except:
-#	#ser.close()
-#	sys.exit(0)
-print ("Restart")
-ser.flush() #flush the buffer
+	print ("Restart")
+	ser.flush() #flush the buffer
