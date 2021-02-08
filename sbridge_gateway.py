@@ -55,39 +55,41 @@ while True:
 	splitout = readOut.split()
 	print(splitout)
 	print(len(splitout))
-	numTagsFound = splitout[len(splitout)-1]
-	print(numTagsFound)
+	numTagsFound = int(splitout[len(splitout)-1])
+	print("NumTagsFound = " + str(numTagsFound))
 
-	tagsNum = []
-	tagsDist = []
-	# loop through the number of tags in the list
-	#splitout.pop(len(splitout))
-	print(splitout)
-	#print(range(numTagsFound))
-	for i in range(int(numTagsFound)):
-		print(i)
-		tagsNum.append(splitout[len(splitout)-2*i-3])
-		tagsDist.append(splitout[len(splitout)-2*i-2])
-		#tagsNum.append(splitout[1])
-		#tagsDist.append(splitout[2])
-	print("tagsNum = " + str(tagsNum))
-	print("tagsDist = " + str(tagsDist))
+	# Only attempt to connect to tags if we have found some so if
+	# there are no tags found, go back to the beginning of loop (or sleep)
+	if (numTagsFound < 1):
+		print("No tags found...")
+	else:
+		tagsNum = []
+		tagsDist = []
+		# loop through the number of tags in the list
+		#splitout.pop(len(splitout))
+		print(splitout)
+		#print(range(numTagsFound))
+		for i in range(int(numTagsFound)):
+			print(i)
+			tagsNum.append(splitout[len(splitout)-2*i-3])
+			tagsDist.append(splitout[len(splitout)-2*i-2])
 
-	for i in range(int(numTagsFound)):
-		ser.write("remote connect" + tagsNum[i])
-		time.sleep(1)
-		readOut = ""
-		while ser.inWaiting() != 0:
-			readOut = ser.readline() + readOut
+		print("tagsNum = " + str(tagsNum))
+		print("tagsDist = " + str(tagsDist))
+
+		for i in range(int(numTagsFound)):
+			ser.write("remote connect" + tagsNum[i])
 			time.sleep(1)
-			print("Reading: ", readOut)
+			readOut = ""
+			while ser.inWaiting() != 0:
+				readOut = ser.readline() + readOut
+				time.sleep(1)
+				print("Reading: ", readOut)
 
-		# need to disconnect from the device
-		print("Disconnect from tag")
-		ser.write("remote disconnect")
-		time.sleep(1)
-
-
+			# need to disconnect from the device
+			print("Disconnect from tag")
+			ser.write("remote disconnect")
+			time.sleep(1)
 
 #	break
 #except:
