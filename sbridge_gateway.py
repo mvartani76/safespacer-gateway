@@ -49,7 +49,7 @@ while True:
 		readOut = ser.readline() + readOut
 		# first line should return # of tags detected
 		time.sleep(1)
-		print ("Reading: ", readOut) 
+		print ("Reading: ", readOut)
 		time.sleep(2)
 	print("read all data")
 	splitout = readOut.split()
@@ -72,6 +72,23 @@ while True:
 		#tagsDist.append(splitout[2])
 	print("tagsNum = " + str(tagsNum))
 	print("tagsDist = " + str(tagsDist))
+
+	for i in range(int(numTagsFound)):
+		ser.write("remote connect" + tagsNum[i])
+		time.sleep(1)
+		readOut = ""
+		while ser.inWaiting() != 0:
+			readOut = ser.readline() + readOut
+			time.sleep(1)
+			print("Reading: ", readOut)
+
+		# need to disconnect from the device
+		print("Disconnect from tag")
+		ser.write("remote disconnect")
+		time.sleep(1)
+
+
+
 #	break
 #except:
 #	#ser.close()
