@@ -128,8 +128,15 @@ while True:
 				# assume that the last 4 values of splitout are:
 				# 'DIR', '..', 'DIR', '.'
 				print("Data on the tag to read...")
-
-
+				# assume that the file name data will be from locations 2 to length-5 in base 0
+				print("length of splitout = " + str((len(splitout))))
+				fileNameArray = []
+				for j in range(len(splitout)-7+1):
+					print(str(splitout[2+j]))
+					fileNameArray = fileNameArray.append(splitout[2+j])
+					ser.write("fs read /logs/" + str(splitout[2+j]) + "\r\n")
+					time.sleep(1)
+				print(fileNameArray)
 			# need to disconnect from the device
 			print("Disconnect from tag")
 			ser.write("remote disconnect\r\n")
