@@ -33,6 +33,8 @@ time.sleep(1)
 ser.flushInput()
 
 while True:
+	ser.flushInput()
+	time.sleep(1)
 	print ("Writing: ",  commandToSend)
 	ser.write(commandToSend)
 	time.sleep(1)
@@ -70,17 +72,67 @@ while True:
 		print("tagsDist = " + str(tagsDist))
 
 		for i in range(int(numTagsFound)):
-			ser.write("remote connect" + tagsNum[i])
+			print("remote connect " + tagsNum[i])
+			ser.write("remote connect " + str(tagsNum[i]) + "\r\n")
 			time.sleep(1)
 			readOut = ""
-			while ser.inWaiting() != 0:
+			print(ser.inWaiting())
+			readOut = ser.readline() + readOut
+			while (ser.inWaiting() != 0):
+				print(ser.inWaiting())
 				readOut = ser.readline() + readOut
 				time.sleep(1)
-				print("Reading: ", readOut)
+				print("Reading RC: ", readOut)
+
+			# make sure echo and color is off on tags
+			ser.write("cli echo -s off\r\n")
+			time.sleep(1)
+			ser.write("cli colors -s off\r\n")
+			time.sleep(1)
+			# set the tags date/time
+			named_tuple = time.localtime()
+			time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
+			print("setting time: " + time_string)
+			ser.write("device datetime -s " + time_string + "\r\n")
+			time.sleep(1)
+			print("enabling contact tracing")
+			ser.write("contact log -s on\r\n")
+			time.sleep(1)
+			print("flushing input...")
+			ser.flushInput()
+			time.sleep(1)
+			# list the files available
+			print("listing the files available on tag")
+			ser.write("fs ls /logs\r\n")
+			time.sleep(1)
+			print("Reading log data...")
+			readOut = ""
+			while (ser.inWaiting() != 0):
+				print(ser.inWaiting())
+				readOut = ser.readline() + readOut
+				time.sleep(1)
+				print("Reading FS: ", readOut)
+
+			print("Read all data...")
+			splitout = readOut.split()
+			print(splitout)
+			# if no files are on the tag, we should only read data for the following
+			# . DIR
+			# .. DIR
+			# ss$
+			# so if the length of splitout <=5, then there is no data on the tag to read
+
+			if len(splitout) <= 5:
+				print("No data on the tag to read...")
+			else:
+				# assume that the last 4 values of splitout are:
+				# 'DIR', '..', 'DIR', '.'
+				print("Data on the tag to read...")
+
 
 			# need to disconnect from the device
 			print("Disconnect from tag")
-			ser.write("remote disconnect")
+			ser.write("remote disconnect\r\n")
 			time.sleep(1)
 
 	print ("Restart")
