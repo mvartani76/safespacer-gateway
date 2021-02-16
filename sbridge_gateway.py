@@ -33,6 +33,29 @@ ser.write("cli echo -s off\n".encode())
 time.sleep(1)
 ser.flushInput()
 
+# check to see if the sbridge is connected to a tag
+# and if it is, disconnect
+print("Ping the device to see what the S-bridge is connected to...")
+ser.write("device ping\n".encode())
+time.sleep(1)
+
+readOut = ""
+while ser.inWaiting() != 0:
+	readOut = ser.readline().decode() + readOut
+	time.sleep(1)
+
+splitout = readOut.split()
+tmp = str(splitout[0])
+tmp = tmp[0:2]
+
+# disconnect from tag if connected to a safe spacer tag
+# need to flush any data from the ping message I think?
+if tmp == "ss":
+	print("S-bridge currently connected to tag. Need to disconnect...")
+	ser.write("remote disconnect\r\n".encode())
+	time.sleep(1)
+	ser.flushInput()
+
 while True:
 	ser.flushInput()
 	time.sleep(1)
