@@ -1,6 +1,7 @@
 import serial
 import time
 import sys
+import dateutil.parser as dp
 
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
@@ -24,11 +25,11 @@ print(ser.is_open)
 ser.flush()
 
 print("Sending command to turn off colors...")
-ser.write("cli colors -s off\n")
+ser.write("cli colors -s off\n".encode())
 time.sleep(1)
 ser.flushInput()
 print("Sending command to turn off echo...")
-ser.write("cli echo -s off\n")
+ser.write("cli echo -s off\n".encode())
 time.sleep(1)
 ser.flushInput()
 
@@ -36,14 +37,14 @@ while True:
 	ser.flushInput()
 	time.sleep(1)
 	print ("Writing: ",  commandToSend)
-	ser.write(commandToSend)
+	ser.write(commandToSend.encode())
 	time.sleep(1)
 
 	print ("Attempt to Read remote list")
 	readOut = ""
 	while ser.inWaiting() != 0:
 		print(ser.inWaiting())
-		readOut = ser.readline() + readOut
+		readOut = ser.readline().decode() + readOut
 		# first line should return # of tags detected
 		time.sleep(1)
 		print ("Reading: ", readOut)
@@ -73,43 +74,43 @@ while True:
 
 		for i in range(int(numTagsFound)):
 			print("remote connect " + tagsNum[i])
-			ser.write("remote connect " + str(tagsNum[i]) + "\r\n")
+			ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
 			time.sleep(1)
 			readOut = ""
 			print(ser.inWaiting())
-			readOut = ser.readline() + readOut
+			readOut = ser.readline().decode() + readOut
 			while (ser.inWaiting() != 0):
 				print(ser.inWaiting())
-				readOut = ser.readline() + readOut
+				readOut = ser.readline().decode() + readOut
 				time.sleep(1)
 				print("Reading RC: ", readOut)
 
 			# make sure echo and color is off on tags
-			ser.write("cli echo -s off\r\n")
+			ser.write("cli echo -s off\r\n".encode())
 			time.sleep(1)
-			ser.write("cli colors -s off\r\n")
+			ser.write("cli colors -s off\r\n".encode())
 			time.sleep(1)
 			# set the tags date/time
 			named_tuple = time.localtime()
 			time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
 			print("setting time: " + time_string)
-			ser.write("device datetime -s " + time_string + "\r\n")
+			ser.write(("device datetime -s " + time_string + "\r\n").encode())
 			time.sleep(1)
 			print("enabling contact tracing")
-			ser.write("contact log -s on\r\n")
+			ser.write("contact log -s on\r\n".encode())
 			time.sleep(1)
 			print("flushing input...")
 			ser.flushInput()
 			time.sleep(1)
 			# list the files available
 			print("listing the files available on tag")
-			ser.write("fs ls /logs\r\n")
+			ser.write("fs ls /logs\r\n".encode())
 			time.sleep(1)
 			print("Reading log data...")
 			readOut = ""
 			while (ser.inWaiting() != 0):
 				print(ser.inWaiting())
-				readOut = ser.readline() + readOut
+				readOut = ser.readline().decode() + readOut
 				time.sleep(1)
 				print("Reading FS: ", readOut)
 
@@ -132,14 +133,27 @@ while True:
 				print("length of splitout = " + str((len(splitout))))
 				fileNameArray = []
 				for j in range(len(splitout)-7+1):
-					print(str(splitout[2+j]))
-					fileNameArray = fileNameArray.append(splitout[2+j])
-					ser.write("fs read /logs/" + str(splitout[2+j]) + "\r\n")
-					time.sleep(1)
+					splt_str = str(splitout[2+j])
+					print("j="+str(j)+" "+str(splt_str))
+					# check if string is a filename by looking at extension
+					if (splt_str.endswith(".txt")):
+						fileNameArray.append(splt_str)
+						fn_t = splt_str[0:len(splt_str)-4]+".000Z"
+						# convert the ISO 8601 time to unix
+						parsed_t = dp.parse(fn_t)
+						t_in_sec = parsed_t.timestamp()
+						ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
+						time.sleep(1)
+						readOut = ""
+						while (ser.inWaiting() != 0):
+							print(ser.inWaiting())
+							readOut = ser.readline().decode() + readOut
+							time.sleep(1)
+							print("Reading read: " + str(readOut))
 				print(fileNameArray)
 			# need to disconnect from the device
 			print("Disconnect from tag")
-			ser.write("remote disconnect\r\n")
+			ser.write("remote disconnect\r\n".encode())
 			time.sleep(1)
 
 	print ("Restart")
