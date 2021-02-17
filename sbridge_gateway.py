@@ -7,6 +7,7 @@ import time
 import sys
 import json
 import os
+import socket
 import dateutil.parser as dp
 from dotenv import load_dotenv
 load_dotenv()
@@ -14,7 +15,7 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.1
+CODE_VERSION = 0.3
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -55,7 +56,9 @@ rootCAPath = os.getenv("ROOTPATH")
 certificatePath = os.getenv("CERTIFICATEPATH")
 privateKeyPath = os.getenv("PRIVATEKEYPATH")
 useWebsocket = False
-clientId = os.getenv("CLIENTID")
+#clientId = os.getenv("CLIENTID")
+clientId = socket.gethostname()
+print(clientId)
 topic = os.getenv("TOPIC")
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
@@ -150,6 +153,21 @@ if tmp == "ss":
 	time.sleep(1)
 	ser.flushInput()
 
+# get the s-bridge ID
+print("Checking the S-Bridge ID (EUI)...")
+ser.write("device info\n".encode())
+time.sleep(1)
+
+readOut = ""
+while ser.inWaiting() != 0:
+	readOut = ser.readline().decode() + readOut
+	time.sleep(1)
+
+splitout = readOut.split()
+print(splitout)
+# the EUI is the element 2 in the splitout array
+sbridgeID = splitout[2]
+
 while True:
 	ser.flushInput()
 	time.sleep(1)
@@ -219,7 +237,6 @@ while True:
 			print("flushing input...")
 			ser.flushInput()
 			time.sleep(1)
-
 
 			# get the battery information
 			print("obtaining battery level")
@@ -299,6 +316,8 @@ while True:
 							"alertTime": str(alertTime),
 							"duration": splitAlert[3],
 							"tag1_battery_lvl": battery_level,
+							"S-Bridge": sbridgeID,
+							"RPi-GW": clientId,
 							"sw_version": CODE_VERSION
 							}
 						jsonOutput = json.dumps(jobj)
