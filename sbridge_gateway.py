@@ -14,6 +14,8 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
+CODE_VERSION = 0.1
+
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
 #ser.parity = serial.PARITY_NONE
@@ -217,6 +219,24 @@ while True:
 			print("flushing input...")
 			ser.flushInput()
 			time.sleep(1)
+
+
+			# get the battery information
+			print("obtaining battery level")
+			ser.write("device battery_state\r\n".encode())
+			time.sleep(1)
+			readOut = ""
+			while (ser.inWaiting() != 0):
+				print(ser.inWaiting())
+				readOut = ser.readline().decode() + readOut
+				time.sleep(1)
+				print("Reading BAT: ", readOut)
+
+			print("Read all data...")
+			# will probably need to do some error checking on the data
+			batt_splitout = readOut.split()
+			battery_level = batt_splitout[len(batt_splitout)-3]
+
 			# list the files available
 			print("listing the files available on tag")
 			ser.write("fs ls /logs\r\n".encode())
@@ -277,7 +297,9 @@ while True:
 							"tag2": splitAlert[0],
 							"minDistance": splitAlert[1],
 							"alertTime": str(alertTime),
-							"duration": splitAlert[3]
+							"duration": splitAlert[3],
+							"tag1_battery_lvl": battery_level,
+							"sw_version": CODE_VERSION
 							}
 						jsonOutput = json.dumps(jobj)
 						myAWSIoTMQTTClient.publishAsync(topic, jsonOutput, 1, ackCallback=customPubackCallback)
