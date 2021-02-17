@@ -5,6 +5,7 @@ import argparse
 import serial
 import time
 import sys
+import json
 import os
 import dateutil.parser as dp
 from dotenv import load_dotenv
@@ -247,8 +248,9 @@ while True:
 				print("length of splitout = " + str((len(splitout))))
 				fileNameArray = []
 				for j in range(len(splitout)-7+1):
+					print("j="+str(j)+" len="+str(len(splitout)))
 					splt_str = str(splitout[2+j])
-					print("j="+str(j)+" "+str(splt_str))
+					print(splt_str)
 					# check if string is a filename by looking at extension
 					if (splt_str.endswith(".txt")):
 						fileNameArray.append(splt_str)
@@ -264,7 +266,21 @@ while True:
 							readOut = ser.readline().decode() + readOut
 							time.sleep(1)
 							print("Reading read: " + str(readOut))
-						myAWSIoTMQTTClient.publishAsync(topic, "New Message " + str(readOut), 1, ackCallback=customPubackCallback)
+						splitoutData = readOut.split()
+						alertData = splitoutData[1]
+						splitAlert = alertData.split(',')
+						print(splitAlert)
+						alertTime = int(splitAlert[2]) + int(t_in_sec)
+
+						jobj = {
+							"tag1": tagsNum[i],
+							"tag2": splitAlert[0],
+							"minDistance": splitAlert[1],
+							"alertTime": str(alertTime),
+							"duration": splitAlert[3]
+							}
+						jsonOutput = json.dumps(jobj)
+						myAWSIoTMQTTClient.publishAsync(topic, jsonOutput, 1, ackCallback=customPubackCallback)
 				print(fileNameArray)
 			# need to disconnect from the device
 			print("Disconnect from tag")
