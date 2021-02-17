@@ -129,6 +129,6 @@ dmypy.json
 .pyre/
 
 # AWS security keys
-.crt
-.key
-.pem
+*.crt
+*.key
+*.pem
