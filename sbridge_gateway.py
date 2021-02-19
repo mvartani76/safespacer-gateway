@@ -15,7 +15,7 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.3
+CODE_VERSION = 0.4
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -55,11 +55,14 @@ host = os.getenv("HOST")
 rootCAPath = os.getenv("ROOTPATH")
 certificatePath = os.getenv("CERTIFICATEPATH")
 privateKeyPath = os.getenv("PRIVATEKEYPATH")
+pingTimerThresh = int(os.getenv("PINGTIMERTHRESH"))
 useWebsocket = False
 #clientId = os.getenv("CLIENTID")
 clientId = socket.gethostname()
 print(clientId)
-topic = os.getenv("TOPIC")
+alertTopic = os.getenv("ALERTTOPIC")
+pingTopic = os.getenv("PINGTOPIC")
+
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
 #    parser.error("X.509 cert authentication and WebSocket are mutual exclusive. Please pick one.")
@@ -105,7 +108,7 @@ myAWSIoTMQTTClient.onMessage = customOnMessage
 # Connect and subscribe to AWS IoT
 myAWSIoTMQTTClient.connect()
 # Note that we are not putting a message callback here. We are using the general message notification callback.
-myAWSIoTMQTTClient.subscribeAsync(topic, 1, ackCallback=customSubackCallback)
+myAWSIoTMQTTClient.subscribeAsync(alertTopic, 1, ackCallback=customSubackCallback)
 time.sleep(2)
 
 # End of AWS IoT Code
@@ -167,6 +170,10 @@ splitout = readOut.split()
 print(splitout)
 # the EUI is the element 2 in the splitout array
 sbridgeID = splitout[2]
+
+# initialize ping timer to current time
+currentPingTime = int(time.time())
+previousPingTime = currentPingTime
 
 while True:
 	ser.flushInput()
@@ -308,12 +315,14 @@ while True:
 						splitAlert = alertData.split(',')
 						print(splitAlert)
 						alertTime = int(splitAlert[2]) + int(t_in_sec)
+						currentTime = time.time()
 
 						jobj = {
 							"tag1": tagsNum[i],
 							"tag2": splitAlert[0],
 							"minDistance": splitAlert[1],
 							"alertTime": str(alertTime),
+							"currentTime": str(currentTime),
 							"duration": splitAlert[3],
 							"tag1_battery_lvl": battery_level,
 							"S-Bridge": sbridgeID,
@@ -321,7 +330,7 @@ while True:
 							"sw_version": CODE_VERSION
 							}
 						jsonOutput = json.dumps(jobj)
-						myAWSIoTMQTTClient.publishAsync(topic, jsonOutput, 1, ackCallback=customPubackCallback)
+						myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
 				print(fileNameArray)
 			# need to disconnect from the device
 			print("Disconnect from tag")
@@ -330,3 +339,20 @@ while True:
 
 	print ("Restart")
 	ser.flush() #flush the buffer
+
+	# Check against time threshold to send gateway ping
+	# if the difference in time is > pingTimerThresh, send the ping message
+	# and set the current and previous times equal to each other
+	print("Time difference = " + str(currentPingTime - previousPingTime))
+	if (currentPingTime - previousPingTime) > pingTimerThresh:
+		previousPingTime = currentPingTime
+		jobj = {
+			"time": str(time.time()),
+			"S-Bridge": sbridgeID,
+			"RPi-GW": clientId,
+			"sw_version": CODE_VERSION
+			}
+		jsonOutput = json.dumps(jobj)
+		myAWSIoTMQTTClient.publishAsync(pingTopic, jsonOutput, 1, ackCallback=customPubackCallback)
+	else:
+		currentPingTime = int(time.time())
