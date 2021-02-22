@@ -59,6 +59,7 @@ pingTimerThresh = int(os.getenv("PINGTIMERTHRESH"))
 useWebsocket = False
 #clientId = os.getenv("CLIENTID")
 clientId = socket.gethostname()
+customerID = os.getenv("CUSTOMERID")
 print(clientId)
 alertTopic = os.getenv("ALERTTOPIC")
 pingTopic = os.getenv("PINGTOPIC")
@@ -327,6 +328,7 @@ while True:
 							"tag1_battery_lvl": battery_level,
 							"S-Bridge": sbridgeID,
 							"RPi-GW": clientId,
+							"CustomerID": customerID,
 							"sw_version": CODE_VERSION
 							}
 						jsonOutput = json.dumps(jobj)
@@ -350,6 +352,7 @@ while True:
 			"time": str(time.time()),
 			"S-Bridge": sbridgeID,
 			"RPi-GW": clientId,
+			"CustomerID": customerID,
 			"sw_version": CODE_VERSION
 			}
 		jsonOutput = json.dumps(jobj)
