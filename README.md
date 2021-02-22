@@ -21,6 +21,7 @@ CustomerID
 sw_version
 ```
 ### ss/sb_ping
+This is the topic for messages sent every ```PINGTIMERTHRESH``` seconds from the Raspberry Pi that provides status that it is still running
 
 **Data sent:**
 ```
