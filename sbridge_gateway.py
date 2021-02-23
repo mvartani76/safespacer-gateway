@@ -15,7 +15,7 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.5
+CODE_VERSION = 0.6
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -63,6 +63,7 @@ customerID = os.getenv("CUSTOMERID")
 print(clientId)
 alertTopic = os.getenv("ALERTTOPIC")
 pingTopic = os.getenv("PINGTOPIC")
+tagDistanceThresh = int(os.getenv("TAGDISTANCETHRESH"))
 
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
@@ -216,129 +217,132 @@ while True:
 		print("tagsDist = " + str(tagsDist))
 
 		for i in range(int(numTagsFound)):
-			print("remote connect " + tagsNum[i])
-			ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
-			time.sleep(1)
-			readOut = ""
-			print(ser.inWaiting())
-			readOut = ser.readline().decode() + readOut
-			while (ser.inWaiting() != 0):
+			# check to see if the tag is within tagDistanceThresh
+			if (int(tagsDist[i]) <= int(tagDistanceThresh)):
+				print("remote connect " + tagsNum[i])
+				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
+				time.sleep(1)
+				readOut = ""
 				print(ser.inWaiting())
 				readOut = ser.readline().decode() + readOut
+				while (ser.inWaiting() != 0):
+					print(ser.inWaiting())
+					readOut = ser.readline().decode() + readOut
+					time.sleep(1)
+					print("Reading RC: ", readOut)
+
+				# make sure echo and color is off on tags
+				ser.write("cli echo -s off\r\n".encode())
 				time.sleep(1)
-				print("Reading RC: ", readOut)
-
-			# make sure echo and color is off on tags
-			ser.write("cli echo -s off\r\n".encode())
-			time.sleep(1)
-			ser.write("cli colors -s off\r\n".encode())
-			time.sleep(1)
-			# set the tags date/time
-			named_tuple = time.localtime()
-			time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
-			print("setting time: " + time_string)
-			ser.write(("device datetime -s " + time_string + "\r\n").encode())
-			time.sleep(1)
-			print("enabling contact tracing")
-			ser.write("contact log -s on\r\n".encode())
-			time.sleep(1)
-			print("flushing input...")
-			ser.flushInput()
-			time.sleep(1)
-
-			# get the battery information
-			print("obtaining battery level")
-			ser.write("device battery_state\r\n".encode())
-			time.sleep(1)
-			readOut = ""
-			while (ser.inWaiting() != 0):
-				print(ser.inWaiting())
-				readOut = ser.readline().decode() + readOut
+				ser.write("cli colors -s off\r\n".encode())
 				time.sleep(1)
-				print("Reading BAT: ", readOut)
-
-			print("Read all data...")
-			# will probably need to do some error checking on the data
-			batt_splitout = readOut.split()
-			battery_level = batt_splitout[len(batt_splitout)-3]
-
-			# list the files available
-			print("listing the files available on tag")
-			ser.write("fs ls /logs\r\n".encode())
-			time.sleep(1)
-			print("Reading log data...")
-			readOut = ""
-			while (ser.inWaiting() != 0):
-				print(ser.inWaiting())
-				readOut = ser.readline().decode() + readOut
+				# set the tags date/time
+				named_tuple = time.localtime()
+				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
+				print("setting time: " + time_string)
+				ser.write(("device datetime -s " + time_string + "\r\n").encode())
 				time.sleep(1)
-				print("Reading FS: ", readOut)
+				print("enabling contact tracing")
+				ser.write("contact log -s on\r\n".encode())
+				time.sleep(1)
+				print("flushing input...")
+				ser.flushInput()
+				time.sleep(1)
 
-			print("Read all data...")
-			splitout = readOut.split()
-			print(splitout)
-			# if no files are on the tag, we should only read data for the following
-			# . DIR
-			# .. DIR
-			# ss$
-			# so if the length of splitout <=5, then there is no data on the tag to read
+				# get the battery information
+				print("obtaining battery level")
+				ser.write("device battery_state\r\n".encode())
+				time.sleep(1)
+				readOut = ""
+				while (ser.inWaiting() != 0):
+					print(ser.inWaiting())
+					readOut = ser.readline().decode() + readOut
+					time.sleep(1)
+					print("Reading BAT: ", readOut)
 
-			if len(splitout) <= 5:
-				print("No data on the tag to read...")
-			else:
-				# assume that the last 4 values of splitout are:
-				# 'DIR', '..', 'DIR', '.'
-				print("Data on the tag to read...")
-				# assume that the file name data will be from locations 2 to length-5 in base 0
-				print("length of splitout = " + str((len(splitout))))
-				fileNameArray = []
-				for j in range(len(splitout)-7+1):
-					print("j="+str(j)+" len="+str(len(splitout)))
-					splt_str = str(splitout[2+j])
-					print(splt_str)
-					# check if string is a filename by looking at extension
-					if (splt_str.endswith(".txt")):
-						fileNameArray.append(splt_str)
-						fn_t = splt_str[0:len(splt_str)-4]+".000Z"
-						# convert the ISO 8601 time to unix
-						parsed_t = dp.parse(fn_t)
-						t_in_sec = parsed_t.timestamp()
-						ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
-						time.sleep(1)
-						readOut = ""
-						while (ser.inWaiting() != 0):
-							print(ser.inWaiting())
-							readOut = ser.readline().decode() + readOut
+				print("Read all data...")
+				# will probably need to do some error checking on the data
+				batt_splitout = readOut.split()
+				battery_level = batt_splitout[len(batt_splitout)-3]
+
+				# list the files available
+				print("listing the files available on tag")
+				ser.write("fs ls /logs\r\n".encode())
+				time.sleep(1)
+				print("Reading log data...")
+				readOut = ""
+				while (ser.inWaiting() != 0):
+					print(ser.inWaiting())
+					readOut = ser.readline().decode() + readOut
+					time.sleep(1)
+					print("Reading FS: ", readOut)
+
+				print("Read all data...")
+				splitout = readOut.split()
+				print(splitout)
+				# if no files are on the tag, we should only read data for the following
+				# . DIR
+				# .. DIR
+				# ss$
+				# so if the length of splitout <=5, then there is no data on the tag to read
+
+				if len(splitout) <= 5:
+					print("No data on the tag to read...")
+				else:
+					# assume that the last 4 values of splitout are:
+					# 'DIR', '..', 'DIR', '.'
+					print("Data on the tag to read...")
+					# assume that the file name data will be from locations 2 to length-5 in base 0
+					print("length of splitout = " + str((len(splitout))))
+					fileNameArray = []
+					for j in range(len(splitout)-7+1):
+						print("j="+str(j)+" len="+str(len(splitout)))
+						splt_str = str(splitout[2+j])
+						print(splt_str)
+						# check if string is a filename by looking at extension
+						if (splt_str.endswith(".txt")):
+							fileNameArray.append(splt_str)
+							fn_t = splt_str[0:len(splt_str)-4]+".000Z"
+							# convert the ISO 8601 time to unix
+							parsed_t = dp.parse(fn_t)
+							t_in_sec = parsed_t.timestamp()
+							ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
 							time.sleep(1)
-							print("Reading read: " + str(readOut))
-						splitoutData = readOut.split()
-						alertData = splitoutData[1]
-						splitAlert = alertData.split(',')
-						print(splitAlert)
-						alertTime = int(splitAlert[2]) + int(t_in_sec)
-						currentTime = time.time()
+							readOut = ""
+							while (ser.inWaiting() != 0):
+								print(ser.inWaiting())
+								readOut = ser.readline().decode() + readOut
+								time.sleep(1)
+								print("Reading read: " + str(readOut))
+							splitoutData = readOut.split()
+							alertData = splitoutData[1]
+							splitAlert = alertData.split(',')
+							print(splitAlert)
+							alertTime = int(splitAlert[2]) + int(t_in_sec)
+							currentTime = time.time()
 
-						jobj = {
-							"tag1": tagsNum[i],
-							"tag2": splitAlert[0],
-							"minDistance": splitAlert[1],
-							"alertTime": str(alertTime),
-							"currentTime": str(currentTime),
-							"duration": splitAlert[3],
-							"tag1_battery_lvl": battery_level,
-							"S-Bridge": sbridgeID,
-							"RPi-GW": clientId,
-							"CustomerID": customerID,
-							"sw_version": CODE_VERSION
-							}
-						jsonOutput = json.dumps(jobj)
-						myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
-				print(fileNameArray)
-			# need to disconnect from the device
-			print("Disconnect from tag")
-			ser.write("remote disconnect\r\n".encode())
-			time.sleep(1)
-
+							jobj = {
+								"tag1": tagsNum[i],
+								"tag2": splitAlert[0],
+								"minDistance": splitAlert[1],
+								"alertTime": str(alertTime),
+								"currentTime": str(currentTime),
+								"duration": splitAlert[3],
+								"tag1_battery_lvl": battery_level,
+								"S-Bridge": sbridgeID,
+								"RPi-GW": clientId,
+								"CustomerID": customerID,
+								"sw_version": CODE_VERSION
+								}
+							jsonOutput = json.dumps(jobj)
+							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
+					print(fileNameArray)
+				# need to disconnect from the device
+				print("Disconnect from tag")
+				ser.write("remote disconnect\r\n".encode())
+				time.sleep(1)
+			else:
+				print("No tags found within threshold distance.")
 	print ("Restart")
 	ser.flush() #flush the buffer
 
