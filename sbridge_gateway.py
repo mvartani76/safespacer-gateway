@@ -15,7 +15,7 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.4
+CODE_VERSION = 0.5
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
