@@ -15,7 +15,7 @@ load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.7
+CODE_VERSION = 0.8
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -111,7 +111,7 @@ myAWSIoTMQTTClient.onMessage = customOnMessage
 # Connect and subscribe to AWS IoT
 myAWSIoTMQTTClient.connect()
 # Note that we are not putting a message callback here. We are using the general message notification callback.
-myAWSIoTMQTTClient.subscribeAsync(alertTopic, 1, ackCallback=customSubackCallback)
+#myAWSIoTMQTTClient.subscribeAsync(alertTopic, 1, ackCallback=customSubackCallback)
 time.sleep(2)
 
 # End of AWS IoT Code
@@ -338,9 +338,16 @@ while True:
 							jsonOutput = json.dumps(jobj)
 							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
 							# remove file from device since we have just sent it to AWS
-							print("Removing " + str(splt_str) + ".txt")
-							ser.write("fs rm /logs/" + str(splt_str))
+							print("Removing " + str(splt_str))
+							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
 							time.sleep(sleepTime)
+							readOut = ""
+							while (ser.inWaiting() != 0):
+                                                                print(ser.inWaiting())
+                                                                readOut = ser.readline().decode() + readOut
+                                                                time.sleep(sleepTime)
+                                                                print("Reading rm: " + str(readOut))
+							ser.flushInput()
 
 					print(fileNameArray)
 				# need to disconnect from the device
