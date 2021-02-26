@@ -53,9 +53,9 @@ CUSTOMERID = <String> - Customer identifier for sorting data in database.
 ```
 
 ### Systemd service file
-This code can be initiated in a service file with the following settings.
-Location for service file: /etc/systemd/system
-Service File Name: safespacer.service
+This code can be initiated in a service file with the following settings.<br>
+Location for service file: /etc/systemd/system<br>
+Service File Name: safespacer.service<br>
 
 ```
 [Unit]
