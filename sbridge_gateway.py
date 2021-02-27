@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.11
+CODE_VERSION = 0.12
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -28,13 +28,18 @@ CODE_VERSION = 0.11
 # AWS IoT Code
 # General message notification callback
 def customOnMessage(message):
-    print("Received a new message: ")
-    print(message.payload)
-    print("from topic: ")
-    print(message.topic)
-    print("--------------\n\n")
-    json_payload = json.loads(message.payload)
-    print(json_payload["sleeptime"])
+	print("Received a new message: ")
+	print(message.payload)
+	print("from topic: ")
+	print(message.topic)
+	print("--------------\n\n")
+	json_payload = json.loads(message.payload)
+	print(json_payload)
+	for key, value in json_payload.items():
+		print(key)
+		os.environ[key] = value
+		dotenv.set_key(".env",key,os.environ[key])
+
 
 # Param Set Suback callback
 def paramSetSubackCallback(mid, data):
