@@ -128,7 +128,8 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# AWS security keys
+# AWS security keys and SDK folder
 *.crt
 *.key
 *.pem
+aws-iot-device-sdk-python/
