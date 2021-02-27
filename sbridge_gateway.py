@@ -9,13 +9,14 @@ import json
 import os
 import socket
 import dateutil.parser as dp
+import dotenv
 from dotenv import load_dotenv
-load_dotenv()
+dotenv.load_dotenv()
 
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.9
+CODE_VERSION = 0.10
 
 #ser = serial.Serial(SERIALPORT, BAUDRATE)
 #ser.bytesize = serial.EIGHTBITS
@@ -32,10 +33,11 @@ def customOnMessage(message):
     print("from topic: ")
     print(message.topic)
     print("--------------\n\n")
+    json_payload = json.loads(message.payload)
+    print(json_payload["sleeptime"])
 
-
-# Suback callback
-def customSubackCallback(mid, data):
+# Param Set Suback callback
+def paramSetSubackCallback(mid, data):
     print("Received SUBACK packet id: ")
     print(mid)
     print("Granted QoS: ")
@@ -60,12 +62,14 @@ useWebsocket = False
 #clientId = os.getenv("CLIENTID")
 clientId = socket.gethostname()
 customerID = os.getenv("CUSTOMERID")
-print(clientId)
 alertTopic = os.getenv("ALERTTOPIC")
 pingTopic = os.getenv("PINGTOPIC")
+paramSetTopic = os.getenv("PARAMSETTOPIC")
 tagDistanceThresh = int(os.getenv("TAGDISTANCETHRESH"))
 sleepTime = float(os.getenv("SLEEPTIME"))
 
+#os.environ["SLEEPTIME"] = str(sleepTime+1.0)
+#dotenv.set_key(".env","SLEEPTIME",os.environ["SLEEPTIME"])
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
 #    parser.error("X.509 cert authentication and WebSocket are mutual exclusive. Please pick one.")
@@ -83,7 +87,7 @@ port = 8883
 
 # Configure logging
 logger = logging.getLogger("AWSIoTPythonSDK.core")
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.ERROR)
 streamHandler = logging.StreamHandler()
 formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 streamHandler.setFormatter(formatter)
@@ -111,13 +115,13 @@ myAWSIoTMQTTClient.onMessage = customOnMessage
 # Connect and subscribe to AWS IoT
 myAWSIoTMQTTClient.connect()
 # Note that we are not putting a message callback here. We are using the general message notification callback.
-#myAWSIoTMQTTClient.subscribeAsync(alertTopic, 1, ackCallback=customSubackCallback)
+myAWSIoTMQTTClient.subscribeAsync(paramSetTopic, 1, ackCallback=paramSetSubackCallback)
 time.sleep(2)
 
 # End of AWS IoT Code
 
-ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1)
-time.sleep(0.1)
+ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
+time.sleep(sleepTime)
 
 print("Starting up Safe Spacer Serial Monitor...")
 print(ser)
@@ -148,6 +152,7 @@ while ser.inWaiting() != 0:
 	time.sleep(sleepTime)
 
 splitout = readOut.split()
+print(splitout)
 tmp = str(splitout[0])
 tmp = tmp[0:2]
 
@@ -156,7 +161,7 @@ tmp = tmp[0:2]
 if tmp == "ss":
 	print("S-bridge currently connected to tag. Need to disconnect...")
 	ser.write("remote disconnect\r\n".encode())
-	time.sleep(1)
+	time.sleep(sleepTime)
 	ser.flushInput()
 
 # get the s-bridge ID
@@ -198,9 +203,21 @@ while True:
 	splitout = readOut.split()
 	print(splitout)
 	print(len(splitout))
-	numTagsFound = int(splitout[len(splitout)-1])
-	print("NumTagsFound = " + str(numTagsFound))
-
+	# if length of splitout = 0, there is an error so should flush data and restart loop
+	if len(splitout) < 1:
+		print("Length of splitout < 1, something not right...")
+		numtTagsFound = -1
+		ser.flushInput()
+		time.sleep(sleepTime)
+	else:
+		# Check to make sure that numTagsFound is an integer value
+		try:
+			numTagsFound = int(splitout[len(splitout)-1])
+		except ValueError:
+			print("NumTagsFound not an integer...")
+			numTagsFound = -1
+			ser.flushInput()
+			time.sleep(sleepTime)
 	# Only attempt to connect to tags if we have found some so if
 	# there are no tags found, go back to the beginning of loop (or sleep)
 	if (numTagsFound < 1):
