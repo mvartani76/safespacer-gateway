@@ -31,6 +31,19 @@ RPi-GW
 CustomerID
 sw_version
 ```
+### ss/set_params
+This is the topic for sending parameters to update on the remote device.
+
+```
+{
+  "CUSTOMERID": "<string>",
+  "TAGDISTANCETHRESH": "<Integer>",
+  "SLEEPTIME": "<Integer>",
+  "PINGTIMERTHRESH": "<Integer>"
+}
+```
+
+NOTE: The key values need to be exact as these are the values used in the .env file. They will not update if not correct.
 
 ## Other Items
 ### Code Execution
