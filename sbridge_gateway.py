@@ -16,14 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.12
-
-#ser = serial.Serial(SERIALPORT, BAUDRATE)
-#ser.bytesize = serial.EIGHTBITS
-#ser.parity = serial.PARITY_NONE
-#ser.stopbits = serial.STOPBITS_ONE
-#ser.timeout = 2
-#ser.writeTimeout = 2
+CODE_VERSION = 0.13
 
 # AWS IoT Code
 # General message notification callback
@@ -39,6 +32,7 @@ def customOnMessage(message):
 		print(key)
 		os.environ[key] = value
 		dotenv.set_key(".env",key,os.environ[key])
+		params[key] = value
 
 
 # Param Set Suback callback
@@ -57,24 +51,24 @@ def customPubackCallback(mid):
     print("++++++++++++++\n\n")
 
 
+# Create Params Dict to store parameter values
+# Use default values just in case
+params = {"SLEEPTIME":0.5, "TAGDISTANCETHRESH":1500, "PINGTIMERTHRESH":900}
+
 # Read in command-line parameters from .env file
 host = os.getenv("HOST")
 rootCAPath = os.getenv("ROOTPATH")
 certificatePath = os.getenv("CERTIFICATEPATH")
 privateKeyPath = os.getenv("PRIVATEKEYPATH")
-pingTimerThresh = int(os.getenv("PINGTIMERTHRESH"))
+params["PINGTIMERTHRESH"] = int(os.getenv("PINGTIMERTHRESH"))
 useWebsocket = False
-#clientId = os.getenv("CLIENTID")
 clientId = socket.gethostname()
 customerID = os.getenv("CUSTOMERID")
 alertTopic = os.getenv("ALERTTOPIC")
 pingTopic = os.getenv("PINGTOPIC")
 paramSetTopic = os.getenv("PARAMSETTOPIC")
-tagDistanceThresh = int(os.getenv("TAGDISTANCETHRESH"))
-sleepTime = float(os.getenv("SLEEPTIME"))
-
-#os.environ["SLEEPTIME"] = str(sleepTime+1.0)
-#dotenv.set_key(".env","SLEEPTIME",os.environ["SLEEPTIME"])
+params["TAGDISTANCETHRESH"] = int(os.getenv("TAGDISTANCETHRESH"))
+params["SLEEPTIME"]  = float(os.getenv("SLEEPTIME"))
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
 #    parser.error("X.509 cert authentication and WebSocket are mutual exclusive. Please pick one.")
@@ -126,7 +120,7 @@ time.sleep(2)
 # End of AWS IoT Code
 
 ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
-time.sleep(sleepTime)
+time.sleep(float(params["SLEEPTIME"]))
 
 print("Starting up Safe Spacer Serial Monitor...")
 print(ser)
@@ -138,23 +132,25 @@ ser.flush()
 
 print("Sending command to turn off colors...")
 ser.write("cli colors -s off\n".encode())
-time.sleep(sleepTime)
+time.sleep(float(params["SLEEPTIME"]))
 ser.flushInput()
 print("Sending command to turn off echo...")
 ser.write("cli echo -s off\n".encode())
-time.sleep(sleepTime)
+time.sleep(float(params["SLEEPTIME"]))
 ser.flushInput()
 
 # check to see if the sbridge is connected to a tag
 # and if it is, disconnect
 print("Ping the device to see what the S-bridge is connected to...")
 ser.write("device ping\n".encode())
-time.sleep(sleepTime)
+time.sleep(float(params["SLEEPTIME"]))
 
 readOut = ""
 while ser.inWaiting() != 0:
 	readOut = ser.readline().decode() + readOut
-	time.sleep(sleepTime)
+	time.sleep(float(params["SLEEPTIME"]))
+
+print(int(params["SLEEPTIME"]))
 
 splitout = readOut.split()
 print(splitout)
@@ -166,18 +162,18 @@ tmp = tmp[0:2]
 if tmp == "ss":
 	print("S-bridge currently connected to tag. Need to disconnect...")
 	ser.write("remote disconnect\r\n".encode())
-	time.sleep(sleepTime)
+	time.sleep(float(params["SLEEPTIME"]))
 	ser.flushInput()
 
 # get the s-bridge ID
 print("Checking the S-Bridge ID (EUI)...")
 ser.write("device info\n".encode())
-time.sleep(sleepTime)
+time.sleep(float(params["SLEEPTIME"]))
 
 readOut = ""
 while ser.inWaiting() != 0:
 	readOut = ser.readline().decode() + readOut
-	time.sleep(sleepTime)
+	time.sleep(float(params["SLEEPTIME"]))
 
 splitout = readOut.split()
 print(splitout)
@@ -190,10 +186,10 @@ previousPingTime = currentPingTime
 
 while True:
 	ser.flushInput()
-	time.sleep(sleepTime)
+	time.sleep(float(params["SLEEPTIME"]))
 	print ("Writing: ",  commandToSend)
 	ser.write(commandToSend.encode())
-	time.sleep(sleepTime)
+	time.sleep(float(params["SLEEPTIME"]))
 
 	print ("Attempt to Read remote list")
 	readOut = ""
@@ -201,7 +197,7 @@ while True:
 		print(ser.inWaiting())
 		readOut = ser.readline().decode() + readOut
 		# first line should return # of tags detected
-		time.sleep(sleepTime)
+		time.sleep(float(params["SLEEPTIME"]))
 		print ("Reading: ", readOut)
 
 	print("read all data")
@@ -213,7 +209,7 @@ while True:
 		print("Length of splitout < 1, something not right...")
 		numtTagsFound = -1
 		ser.flushInput()
-		time.sleep(sleepTime)
+		time.sleep(float(params["SLEEPTIME"]))
 	else:
 		# Check to make sure that numTagsFound is an integer value
 		try:
@@ -222,7 +218,7 @@ while True:
 			print("NumTagsFound not an integer...")
 			numTagsFound = -1
 			ser.flushInput()
-			time.sleep(sleepTime)
+			time.sleep(float(params["SLEEPTIME"]))
 	# Only attempt to connect to tags if we have found some so if
 	# there are no tags found, go back to the beginning of loop (or sleep)
 	if (numTagsFound < 1):
@@ -241,46 +237,46 @@ while True:
 
 		for i in range(int(numTagsFound)):
 			# check to see if the tag is within tagDistanceThresh
-			if (int(tagsDist[i]) <= int(tagDistanceThresh)):
+			if (int(tagsDist[i]) <= int(params["TAGDISTANCETHRESH"])):
 				print("remote connect " + tagsNum[i])
 				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
 				print(ser.inWaiting())
 				readOut = ser.readline().decode() + readOut
 				while (ser.inWaiting() != 0):
 					print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
-					time.sleep(sleepTime)
+					time.sleep(float(params["SLEEPTIME"]))
 					print("Reading RC: ", readOut)
 
 				# make sure echo and color is off on tags
 				ser.write("cli echo -s off\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				ser.write("cli colors -s off\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				# set the tags date/time
 				named_tuple = time.localtime()
 				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
 				print("setting time: " + time_string)
 				ser.write(("device datetime -s " + time_string + "\r\n").encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				print("enabling contact tracing")
 				ser.write("contact log -s on\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				print("flushing input...")
 				ser.flushInput()
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 
 				# get the battery information
 				print("obtaining battery level")
 				ser.write("device battery_state\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
 				while (ser.inWaiting() != 0):
 					print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
-					time.sleep(sleepTime)
+					time.sleep(float(params["SLEEPTIME"]))
 					print("Reading BAT: ", readOut)
 
 				print("Read all data...")
@@ -291,13 +287,13 @@ while True:
 				# list the files available
 				print("listing the files available on tag")
 				ser.write("fs ls /logs\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 				print("Reading log data...")
 				readOut = ""
 				while (ser.inWaiting() != 0):
 					print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
-					time.sleep(sleepTime)
+					time.sleep(float(params["SLEEPTIME"]))
 					print("Reading FS: ", readOut)
 
 				print("Read all data...")
@@ -330,12 +326,12 @@ while True:
 							parsed_t = dp.parse(fn_t)
 							t_in_sec = parsed_t.timestamp()
 							ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
-							time.sleep(sleepTime)
+							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
 							while (ser.inWaiting() != 0):
 								print(ser.inWaiting())
 								readOut = ser.readline().decode() + readOut
-								time.sleep(sleepTime)
+								time.sleep(float(params["SLEEPTIME"]))
 								print("Reading read: " + str(readOut))
 							splitoutData = readOut.split()
 							alertData = splitoutData[1]
@@ -362,12 +358,12 @@ while True:
 							# remove file from device since we have just sent it to AWS
 							print("Removing " + str(splt_str))
 							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
-							time.sleep(sleepTime)
+							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
 							while (ser.inWaiting() != 0):
                                                                 print(ser.inWaiting())
                                                                 readOut = ser.readline().decode() + readOut
-                                                                time.sleep(sleepTime)
+                                                                time.sleep(float(params["SLEEPTIME"]))
                                                                 print("Reading rm: " + str(readOut))
 							ser.flushInput()
 
@@ -375,7 +371,7 @@ while True:
 				# need to disconnect from the device
 				print("Disconnect from tag")
 				ser.write("remote disconnect\r\n".encode())
-				time.sleep(sleepTime)
+				time.sleep(float(params["SLEEPTIME"]))
 			else:
 				print("No tags found within threshold distance.")
 	print ("Restart")
@@ -385,7 +381,7 @@ while True:
 	# if the difference in time is > pingTimerThresh, send the ping message
 	# and set the current and previous times equal to each other
 	print("Time difference = " + str(currentPingTime - previousPingTime))
-	if (currentPingTime - previousPingTime) > pingTimerThresh:
+	if (currentPingTime - previousPingTime) > int(params["PINGTIMERTHRESH"]):
 		previousPingTime = currentPingTime
 		jobj = {
 			"time": str(time.time()),
