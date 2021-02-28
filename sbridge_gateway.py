@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.15
+CODE_VERSION = 0.16
 
 # AWS IoT Code
 # General message notification callback
@@ -66,9 +66,14 @@ clientId = socket.gethostname()
 customerID = os.getenv("CUSTOMERID")
 alertTopic = os.getenv("ALERTTOPIC")
 pingTopic = os.getenv("PINGTOPIC")
-paramSetTopic = os.getenv("PARAMSETTOPIC")
+
+# MQTT message for sending parameter updates is <general_param_topic>/<hostname>
+# this way it will only update the specific device -- will need to think about how to update all devices
+paramSetTopic = os.getenv("PARAMSETTOPIC") + "/" + str(clientId)
 params["TAGDISTANCETHRESH"] = int(os.getenv("TAGDISTANCETHRESH"))
 params["SLEEPTIME"]  = float(os.getenv("SLEEPTIME"))
+
+print(paramSetTopic)
 
 #if args.useWebsocket and args.certificatePath and args.privateKeyPath:
 #    parser.error("X.509 cert authentication and WebSocket are mutual exclusive. Please pick one.")
