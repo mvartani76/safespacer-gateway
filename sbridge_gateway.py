@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.14
+CODE_VERSION = 0.15
 
 # AWS IoT Code
 # General message notification callback
