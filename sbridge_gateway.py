@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.13
+CODE_VERSION = 0.14
 
 # AWS IoT Code
 # General message notification callback
@@ -194,11 +194,11 @@ while True:
 	print ("Attempt to Read remote list")
 	readOut = ""
 	while ser.inWaiting() != 0:
-		print(ser.inWaiting())
+		#print(ser.inWaiting())
 		readOut = ser.readline().decode() + readOut
 		# first line should return # of tags detected
 		time.sleep(float(params["SLEEPTIME"]))
-		print ("Reading: ", readOut)
+		#print ("Reading: ", readOut)
 
 	print("read all data")
 	splitout = readOut.split()
@@ -228,7 +228,7 @@ while True:
 		tagsDist = []
 		# loop through the number of tags in the list
 		for i in range(int(numTagsFound)):
-			print(i)
+			#print(i)
 			tagsNum.append(splitout[len(splitout)-2*i-3])
 			tagsDist.append(splitout[len(splitout)-2*i-2])
 
@@ -242,13 +242,13 @@ while True:
 				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
-				print(ser.inWaiting())
+				#print(ser.inWaiting())
 				readOut = ser.readline().decode() + readOut
 				while (ser.inWaiting() != 0):
-					print(ser.inWaiting())
+					#print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
 					time.sleep(float(params["SLEEPTIME"]))
-					print("Reading RC: ", readOut)
+					#print("Reading RC: ", readOut)
 
 				# make sure echo and color is off on tags
 				ser.write("cli echo -s off\r\n".encode())
@@ -258,26 +258,26 @@ while True:
 				# set the tags date/time
 				named_tuple = time.localtime()
 				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
-				print("setting time: " + time_string)
+				#print("setting time: " + time_string)
 				ser.write(("device datetime -s " + time_string + "\r\n").encode())
 				time.sleep(float(params["SLEEPTIME"]))
-				print("enabling contact tracing")
+				#print("enabling contact tracing")
 				ser.write("contact log -s on\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
-				print("flushing input...")
+				#print("flushing input...")
 				ser.flushInput()
 				time.sleep(float(params["SLEEPTIME"]))
 
 				# get the battery information
-				print("obtaining battery level")
+				#print("obtaining battery level")
 				ser.write("device battery_state\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
 				while (ser.inWaiting() != 0):
-					print(ser.inWaiting())
+					#print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
 					time.sleep(float(params["SLEEPTIME"]))
-					print("Reading BAT: ", readOut)
+					#print("Reading BAT: ", readOut)
 
 				print("Read all data...")
 				# will probably need to do some error checking on the data
@@ -285,18 +285,18 @@ while True:
 				battery_level = batt_splitout[len(batt_splitout)-3]
 
 				# list the files available
-				print("listing the files available on tag")
+				#print("listing the files available on tag")
 				ser.write("fs ls /logs\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
-				print("Reading log data...")
+				#print("Reading log data...")
 				readOut = ""
 				while (ser.inWaiting() != 0):
-					print(ser.inWaiting())
+					#print(ser.inWaiting())
 					readOut = ser.readline().decode() + readOut
 					time.sleep(float(params["SLEEPTIME"]))
-					print("Reading FS: ", readOut)
+					#print("Reading FS: ", readOut)
 
-				print("Read all data...")
+				print("Read all fs ls data...")
 				splitout = readOut.split()
 				print(splitout)
 				# if no files are on the tag, we should only read data for the following
@@ -315,9 +315,9 @@ while True:
 					print("length of splitout = " + str((len(splitout))))
 					fileNameArray = []
 					for j in range(len(splitout)-7+1):
-						print("j="+str(j)+" len="+str(len(splitout)))
+						#print("j="+str(j)+" len="+str(len(splitout)))
 						splt_str = str(splitout[2+j])
-						print(splt_str)
+						#print(splt_str)
 						# check if string is a filename by looking at extension
 						if (splt_str.endswith(".txt")):
 							fileNameArray.append(splt_str)
@@ -329,14 +329,14 @@ while True:
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
 							while (ser.inWaiting() != 0):
-								print(ser.inWaiting())
+								#print(ser.inWaiting())
 								readOut = ser.readline().decode() + readOut
 								time.sleep(float(params["SLEEPTIME"]))
-								print("Reading read: " + str(readOut))
+								#print("Reading read: " + str(readOut))
 							splitoutData = readOut.split()
 							alertData = splitoutData[1]
 							splitAlert = alertData.split(',')
-							print(splitAlert)
+							#print(splitAlert)
 							alertTime = int(splitAlert[2]) + int(t_in_sec)
 							currentTime = time.time()
 
@@ -356,15 +356,15 @@ while True:
 							jsonOutput = json.dumps(jobj)
 							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
 							# remove file from device since we have just sent it to AWS
-							print("Removing " + str(splt_str))
+							#print("Removing " + str(splt_str))
 							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
 							while (ser.inWaiting() != 0):
-                                                                print(ser.inWaiting())
+                                                                #print(ser.inWaiting())
                                                                 readOut = ser.readline().decode() + readOut
                                                                 time.sleep(float(params["SLEEPTIME"]))
-                                                                print("Reading rm: " + str(readOut))
+                                                                #print("Reading rm: " + str(readOut))
 							ser.flushInput()
 
 					print(fileNameArray)
