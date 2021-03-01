@@ -42,7 +42,7 @@ This is the topic for sending parameters to update on the remote device.
   "PINGTIMERTHRESH": "<Integer>"
 }
 ```
-*\<hostname\>* is the hostname for the device that is to be programmed. Still TBD on sending command to all devices.
+**\<hostname\>** is the hostname for the device that is to be programmed. Still TBD on sending command to all devices.
 
 NOTE: The key values need to be exact as these are the values used in the .env file. They will not update the algorithm if not correct but will add additional values to the .env file.
 
