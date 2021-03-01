@@ -31,7 +31,7 @@ RPi-GW
 CustomerID
 sw_version
 ```
-### ss/set_params
+### ss/set_params/<hostname>
 This is the topic for sending parameters to update on the remote device.
 
 ```
@@ -42,8 +42,9 @@ This is the topic for sending parameters to update on the remote device.
   "PINGTIMERTHRESH": "<Integer>"
 }
 ```
+<hostname> is the hostname for the device that is to be programmed. Still TBD on sending command to all devices.
 
-NOTE: The key values need to be exact as these are the values used in the .env file. They will not update if not correct.
+NOTE: The key values need to be exact as these are the values used in the .env file. They will not update the algorithm if not correct but will add additional values to the .env file.
 
 ## Other Items
 ### Code Execution
