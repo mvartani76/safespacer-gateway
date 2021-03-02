@@ -3,13 +3,8 @@ const https = require('https');
 const postURL = process.env.postURL
 const postPath = process.env.postPath
 
-exports.handler = async (event, context, callback) => {
-    // TODO implement
-    const response = {
-        statusCode: 200,
-        body: JSON.stringify('Hello from Lambda!'),
-    };
-    
+exports.handler = async (event) => {
+
     console.log('event: ', JSON.stringify(event));
     
     // Send Post request
@@ -20,29 +15,15 @@ exports.handler = async (event, context, callback) => {
         path: postPath,
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': post_data.length
+            'Content-Type': 'application/json; charset=utf-8'
         }
     };
 
-    const req = https.request(post_options, res => {
-        console.log(`statusCode: ${res.statusCode}`);
+    const response = await new Promise(function(resolve, reject) {
 
-        res.on('data', d => {
-            process.stdout.write(d);
+      var req = https.request(post_options, function(res) {  
+        res.on('data', function(event) {
+          console.log(post_data);
         });
-        console.log("got in here...");
-    });
-    
-    req.on('error', error => {
-            console.error(error);
-    });
-
-    console.log('postURL: ', postURL);
-    console.log('postPath: ', postPath);
-
-    req.write(post_data);
-    req.end();
-    
-    return response;
-};
+        res.on('end', resolve);
+      });
