@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.16
+CODE_VERSION = 0.17
 
 # AWS IoT Code
 # General message notification callback
@@ -389,7 +389,7 @@ while True:
 	if (currentPingTime - previousPingTime) > int(params["PINGTIMERTHRESH"]):
 		previousPingTime = currentPingTime
 		jobj = {
-			"time": str(time.time()),
+			"time": str(int(time.time())),
 			"S-Bridge": sbridgeID,
 			"RPi-GW": clientId,
 			"CustomerID": customerID,
