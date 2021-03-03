@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.17
+CODE_VERSION = 0.18
 
 # AWS IoT Code
 # General message notification callback
@@ -343,7 +343,7 @@ while True:
 							splitAlert = alertData.split(',')
 							#print(splitAlert)
 							alertTime = int(splitAlert[2]) + int(t_in_sec)
-							currentTime = time.time()
+							currentTime = int(time.time())
 
 							jobj = {
 								"tag1": tagsNum[i],
