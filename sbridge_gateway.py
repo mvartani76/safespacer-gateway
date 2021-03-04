@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.18
+CODE_VERSION = 0.19
 
 # AWS IoT Code
 # General message notification callback
@@ -193,6 +193,7 @@ while True:
 	ser.flushInput()
 	time.sleep(float(params["SLEEPTIME"]))
 	print ("Writing: ",  commandToSend)
+	readRemoteStartTime = time.time()
 	ser.write(commandToSend.encode())
 	time.sleep(float(params["SLEEPTIME"]))
 
@@ -205,6 +206,8 @@ while True:
 		time.sleep(float(params["SLEEPTIME"]))
 		#print ("Reading: ", readOut)
 
+	readRemoteTime = round(time.time() - readRemoteStartTime, 3)
+	print("readRemoteTime = " + str(readRemoteTime))
 	print("read all data")
 	splitout = readOut.split()
 	print(splitout)
@@ -390,6 +393,7 @@ while True:
 		previousPingTime = currentPingTime
 		jobj = {
 			"time": str(int(time.time())),
+			"readremotetime": str(readRemoteTime),
 			"S-Bridge": sbridgeID,
 			"RPi-GW": clientId,
 			"CustomerID": customerID,
