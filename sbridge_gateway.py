@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.20
+CODE_VERSION = 0.21
 
 # AWS IoT Code
 # General message notification callback
@@ -393,7 +393,7 @@ while True:
                                                                 time.sleep(float(params["SLEEPTIME"]))
                                                                 #print("Reading rm: " + str(readOut))
 							ser.flushInput()
-							removeFileTime = round(time.time() - removeFilesStartTime, 3)
+							removeFileTime = round(time.time() - removeFileStartTime, 3)
 							print("removeFileTime = " + str(removeFileTime))
 
 					print(fileNameArray)
