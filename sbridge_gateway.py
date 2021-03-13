@@ -1,7 +1,7 @@
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 import logging
 import argparse
-
+import ReadLine
 import serial
 import time
 import sys
@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.19
+CODE_VERSION = 0.20
 
 # AWS IoT Code
 # General message notification callback
@@ -154,6 +154,12 @@ readOut = ""
 while ser.inWaiting() != 0:
 	readOut = ser.readline().decode() + readOut
 	time.sleep(float(params["SLEEPTIME"]))
+#readOut = []
+#waiting = ser.in_waiting
+#readOut += [chr(c) for c in ser.read(waiting)]
+#print(readOut)
+#r1 = ReadLine.ReadLine(ser)
+#readOut = r1.readline()
 
 print(int(params["SLEEPTIME"]))
 
@@ -190,6 +196,7 @@ currentPingTime = int(time.time())
 previousPingTime = currentPingTime
 
 while True:
+	totalStartTime = time.time()
 	ser.flushInput()
 	time.sleep(float(params["SLEEPTIME"]))
 	print ("Writing: ",  commandToSend)
@@ -208,7 +215,7 @@ while True:
 
 	readRemoteTime = round(time.time() - readRemoteStartTime, 3)
 	print("readRemoteTime = " + str(readRemoteTime))
-	print("read all data")
+	#print("read all data")
 	splitout = readOut.split()
 	print(splitout)
 	print(len(splitout))
@@ -247,6 +254,7 @@ while True:
 			# check to see if the tag is within tagDistanceThresh
 			if (int(tagsDist[i]) <= int(params["TAGDISTANCETHRESH"])):
 				print("remote connect " + tagsNum[i])
+				remoteConnectStartTime = time.time()
 				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
@@ -257,7 +265,8 @@ while True:
 					readOut = ser.readline().decode() + readOut
 					time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading RC: ", readOut)
-
+				remoteConnectTime = round(time.time() - remoteConnectStartTime, 3)
+				print("remoteConnectTime = " + str(remoteConnectTime))
 				# make sure echo and color is off on tags
 				ser.write("cli echo -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
@@ -278,6 +287,7 @@ while True:
 
 				# get the battery information
 				#print("obtaining battery level")
+				readBattLvlStartTime = time.time()
 				ser.write("device battery_state\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
@@ -287,13 +297,16 @@ while True:
 					time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading BAT: ", readOut)
 
-				print("Read all data...")
+				readBattLvlTime = round(time.time() - readBattLvlStartTime, 3)
+				print("readBattLvlTime = " + str(readBattLvlTime))
+				#print("Read all battery data...")
 				# will probably need to do some error checking on the data
 				batt_splitout = readOut.split()
 				battery_level = batt_splitout[len(batt_splitout)-3]
 
 				# list the files available
 				#print("listing the files available on tag")
+				readFilesStartTime = time.time()
 				ser.write("fs ls /logs\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				#print("Reading log data...")
@@ -304,7 +317,9 @@ while True:
 					time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading FS: ", readOut)
 
-				print("Read all fs ls data...")
+				readFilesTime = round(time.time() - readFilesStartTime, 3)
+				print("readFilesTime = " + str(readFilesTime))
+				#print("Read all fs ls data...")
 				splitout = readOut.split()
 				print(splitout)
 				# if no files are on the tag, we should only read data for the following
@@ -333,6 +348,7 @@ while True:
 							# convert the ISO 8601 time to unix
 							parsed_t = dp.parse(fn_t)
 							t_in_sec = parsed_t.timestamp()
+							readFileDataStartTime = time.time()
 							ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
@@ -341,6 +357,8 @@ while True:
 								readOut = ser.readline().decode() + readOut
 								time.sleep(float(params["SLEEPTIME"]))
 								#print("Reading read: " + str(readOut))
+							readFileDataTime = round(time.time() - readFileDataStartTime, 3)
+							print("readFileDataTime = " + str(readFileDataTime))
 							splitoutData = readOut.split()
 							alertData = splitoutData[1]
 							splitAlert = alertData.split(',')
@@ -365,6 +383,7 @@ while True:
 							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
 							# remove file from device since we have just sent it to AWS
 							#print("Removing " + str(splt_str))
+							removeFileStartTime = time.time()
 							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
@@ -374,16 +393,23 @@ while True:
                                                                 time.sleep(float(params["SLEEPTIME"]))
                                                                 #print("Reading rm: " + str(readOut))
 							ser.flushInput()
+							removeFileTime = round(time.time() - removeFilesStartTime, 3)
+							print("removeFileTime = " + str(removeFileTime))
 
 					print(fileNameArray)
 				# need to disconnect from the device
 				print("Disconnect from tag")
+				disconnectStartTime = time.time()
 				ser.write("remote disconnect\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
+				disconnectTime = round(time.time() - disconnectStartTime, 3)
+				print("disconnectTime = " + str(disconnectTime))
 			else:
 				print("No tags found within threshold distance.")
 	print ("Restart")
 	ser.flush() #flush the buffer
+	totalTime = round(time.time() - totalStartTime, 3)
+	print("totalTime = " + str(totalTime))
 
 	# Check against time threshold to send gateway ping
 	# if the difference in time is > pingTimerThresh, send the ping message
