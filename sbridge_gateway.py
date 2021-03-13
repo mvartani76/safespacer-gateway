@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.21
+CODE_VERSION = 0.22
 
 # AWS IoT Code
 # General message notification callback
@@ -205,13 +205,27 @@ while True:
 	time.sleep(float(params["SLEEPTIME"]))
 
 	print ("Attempt to Read remote list")
-	readOut = ""
-	while ser.inWaiting() != 0:
+	#readOut = ""
+	#while ser.inWaiting() != 0:
 		#print(ser.inWaiting())
-		readOut = ser.readline().decode() + readOut
+	#	readOut = ser.readline().decode() + readOut
 		# first line should return # of tags detected
-		time.sleep(float(params["SLEEPTIME"]))
+	#	time.sleep(float(params["SLEEPTIME"]))
 		#print ("Reading: ", readOut)
+
+
+	readOut = []
+	#waiting = ser.in_waiting
+	#print(waiting)
+	readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+	print(readOut)
+	strOut = "".join(readOut)
+	readOut = strOut
+	print(readOut)
+	#r1 = ReadLine.ReadLine(ser)
+	#readOut = r1.readline()
+	#print(readOut)
+
 
 	readRemoteTime = round(time.time() - readRemoteStartTime, 3)
 	print("readRemoteTime = " + str(readRemoteTime))
@@ -228,7 +242,8 @@ while True:
 	else:
 		# Check to make sure that numTagsFound is an integer value
 		try:
-			numTagsFound = int(splitout[len(splitout)-1])
+			#numTagsFound = int(splitout[len(splitout)-1])
+			numTagsFound = int(splitout[0])
 		except ValueError:
 			print("NumTagsFound not an integer...")
 			numTagsFound = -1
@@ -243,9 +258,11 @@ while True:
 		tagsDist = []
 		# loop through the number of tags in the list
 		for i in range(int(numTagsFound)):
-			#print(i)
-			tagsNum.append(splitout[len(splitout)-2*i-3])
-			tagsDist.append(splitout[len(splitout)-2*i-2])
+			print(i)
+			#tagsNum.append(splitout[len(splitout)-2*i-3])
+			#tagsDist.append(splitout[len(splitout)-2*i-2])
+			tagsNum.append(splitout[2*i+1])
+			tagsDist.append(splitout[2*i+2])
 
 		print("tagsNum = " + str(tagsNum))
 		print("tagsDist = " + str(tagsDist))
