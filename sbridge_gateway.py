@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.23
+CODE_VERSION = 0.24
 
 # AWS IoT Code
 # General message notification callback
@@ -266,31 +266,46 @@ while True:
 #		print("tagsDist = " + str(tagsDist))
 
 		for i in range(int(numTagsFound)):
+			ser.flushInput()
 			# check to see if the tag is within tagDistanceThresh
 			if (int(tagsDist[i]) <= int(params["TAGDISTANCETHRESH"])):
 				print("remote connect " + tagsNum[i])
 				remoteConnectStartTime = time.time()
 				# connect to the tag
 				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
-				time.sleep(float(params["SLEEPTIME"]))
+				#time.sleep(float(params["SLEEPTIME"]))
+				time.sleep(0.75)
 				readOut = ""
 				#print(ser.inWaiting())
-				readOut = ser.readline().decode() + readOut
+				#readOut = ser.readline().decode() + readOut
 #				while (ser.inWaiting() != 0):
 					#print(ser.inWaiting())
 #					readOut = ser.readline().decode() + readOut
 #					time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading RC: ", readOut)
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
-				#ser.flushInput()
+				strOut = "".join(readOut)
+				splitout = strOut.split()
+				print(splitout)
+				ser.flushInput()
 				time.sleep(float(params["SLEEPTIME"]))
 				remoteConnectTime = round(time.time() - remoteConnectStartTime, 3)
 #				print("remoteConnectTime = " + str(remoteConnectTime))
 				# make sure echo and color is off on tags
+				print("turning off tag echo...")
 				ser.write("cli echo -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				strOut = "".join(readOut)
+				readOut = strOut
+				print(readOut)
+				print("turning off tag colors...")
 				ser.write("cli colors -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				strOut = "".join(readOut)
+				readOut = strOut
+				print(readOut)
 				# set the tags date/time
 				named_tuple = time.localtime()
 				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
@@ -318,14 +333,14 @@ while True:
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
-				print(readOut)
+				#print(readOut)
 
 				readBattLvlTime = round(time.time() - readBattLvlStartTime, 3)
 				print("readBattLvlTime = " + str(readBattLvlTime))
 				#print("Read all battery data...")
 				# will probably need to do some error checking on the data
 				batt_splitout = readOut.split()
-				print(batt_splitout)
+				#print(batt_splitout)
 				# battery % is 4th item in array (base 0) if 'device' is the first element
 				# sometimes we read 'level' as the first item which means 'device' is missing
 				# in this case, the battery % is stored in the second item base 0
@@ -337,6 +352,7 @@ while True:
 				# list the files available
 				#print("listing the files available on tag")
 				readFilesStartTime = time.time()
+				time.sleep(float(params["SLEEPTIME"]))
 				ser.write("fs ls /logs\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				#print("Reading log data...")
@@ -346,7 +362,6 @@ while True:
 				#	readOut = ser.readline().decode() + readOut
 				#	time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading FS: ", readOut)
-
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
@@ -371,13 +386,15 @@ while True:
 					# assume that the file name data will be from locations 2 to length-5 in base 0
 					print("length of filename splitout = " + str((len(splitout))))
 					fileNameArray = []
-					for j in range(len(splitout)-7+1):
+					for j in range(len(splitout)-5):
 						print("j="+str(j)+" len="+str(len(splitout)))
 						splt_str = str(splitout[4+j])
 						print(splt_str)
 						# check if string is a filename by looking at extension
 						if (splt_str.endswith(".txt")):
 							print("Found a .txt file.")
+							ser.flushInput()
+							ser.flushOutput()
 							fileNameArray.append(splt_str)
 							fn_t = splt_str[0:len(splt_str)-4]+".000Z"
 							# convert the ISO 8601 time to unix
@@ -387,16 +404,28 @@ while True:
 							ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
-							while (ser.inWaiting() != 0):
-								#print(ser.inWaiting())
-								readOut = ser.readline().decode() + readOut
-								time.sleep(float(params["SLEEPTIME"]))
+							#while (ser.inWaiting() != 0):
+							#	#print(ser.inWaiting())
+							#	readOut = ser.readline().decode() + readOut
+							#	time.sleep(float(params["SLEEPTIME"]))
 								#print("Reading read: " + str(readOut))
+							readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+							strOut = "".join(readOut)
+							readOut = strOut
 							readFileDataTime = round(time.time() - readFileDataStartTime, 3)
 							print("readFileDataTime = " + str(readFileDataTime))
 							splitoutData = readOut.split()
 							print(splitoutData)
-							alertData = splitoutData[1]
+							# splitoutData should look like this
+							# ['File', 'size:', <size>, <data>, 'ss:$']
+							# ['File', 'size:', '19', '0001f82,67,5184,74', 'ss:~$']
+							#
+							# Observed that sometimes the previous command is in the array so we need to ignore
+							# ['fs', 'read', '/logs/2021-03-15T03:07:13.txt', '-f', 'ascii', 'File', 'size:', '18', '0001f82,114,21,43', 'ss:~$']
+							#
+							# Look in the array for the 'File' element and use that as an offset
+							offset = splitoutData.index('File')
+							alertData = splitoutData[3+offset]
 							print(alertData)
 							splitAlert = alertData.split(',')
 							print(splitAlert)
@@ -424,11 +453,12 @@ while True:
 							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
-							while (ser.inWaiting() != 0):
-                                                                #print(ser.inWaiting())
-                                                                readOut = ser.readline().decode() + readOut
-                                                                time.sleep(float(params["SLEEPTIME"]))
-                                                                #print("Reading rm: " + str(readOut))
+							#while (ser.inWaiting() != 0):
+                                                        #        #print(ser.inWaiting())
+                                                        #        readOut = ser.readline().decode() + readOut
+                                                        #        time.sleep(float(params["SLEEPTIME"]))
+                                                        #        #print("Reading rm: " + str(readOut))
+							readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 							ser.flushInput()
 							removeFileTime = round(time.time() - removeFileStartTime, 3)
 							print("removeFileTime = " + str(removeFileTime))
