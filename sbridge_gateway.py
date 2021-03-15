@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.22
+CODE_VERSION = 0.23
 
 # AWS IoT Code
 # General message notification callback
@@ -154,6 +154,7 @@ readOut = ""
 while ser.inWaiting() != 0:
 	readOut = ser.readline().decode() + readOut
 	time.sleep(float(params["SLEEPTIME"]))
+
 #readOut = []
 #waiting = ser.in_waiting
 #readOut += [chr(c) for c in ser.read(waiting)]
@@ -161,7 +162,7 @@ while ser.inWaiting() != 0:
 #r1 = ReadLine.ReadLine(ser)
 #readOut = r1.readline()
 
-print(int(params["SLEEPTIME"]))
+print(float(params["SLEEPTIME"]))
 
 splitout = readOut.split()
 print(splitout)
@@ -199,12 +200,12 @@ while True:
 	totalStartTime = time.time()
 	ser.flushInput()
 	time.sleep(float(params["SLEEPTIME"]))
-	print ("Writing: ",  commandToSend)
+#	print ("Writing: ",  commandToSend)
 	readRemoteStartTime = time.time()
 	ser.write(commandToSend.encode())
 	time.sleep(float(params["SLEEPTIME"]))
 
-	print ("Attempt to Read remote list")
+#	print ("Attempt to Read remote list")
 	#readOut = ""
 	#while ser.inWaiting() != 0:
 		#print(ser.inWaiting())
@@ -218,21 +219,17 @@ while True:
 	#waiting = ser.in_waiting
 	#print(waiting)
 	readOut = [chr(c) for c in ser.read(ser.in_waiting)]
-	print(readOut)
+#	print(readOut)
 	strOut = "".join(readOut)
 	readOut = strOut
-	print(readOut)
-	#r1 = ReadLine.ReadLine(ser)
-	#readOut = r1.readline()
-	#print(readOut)
-
+#	print(readOut)
 
 	readRemoteTime = round(time.time() - readRemoteStartTime, 3)
-	print("readRemoteTime = " + str(readRemoteTime))
+#	print("readRemoteTime = " + str(readRemoteTime))
 	#print("read all data")
 	splitout = readOut.split()
-	print(splitout)
-	print(len(splitout))
+#	print(splitout)
+#	print(len(splitout))
 	# if length of splitout = 0, there is an error so should flush data and restart loop
 	if len(splitout) < 1:
 		print("Length of splitout < 1, something not right...")
@@ -252,38 +249,43 @@ while True:
 	# Only attempt to connect to tags if we have found some so if
 	# there are no tags found, go back to the beginning of loop (or sleep)
 	if (numTagsFound < 1):
-		print("No tags found...")
+#		print("No tags found...")
+		i=0
 	else:
 		tagsNum = []
 		tagsDist = []
 		# loop through the number of tags in the list
 		for i in range(int(numTagsFound)):
-			print(i)
+#			print(i)
 			#tagsNum.append(splitout[len(splitout)-2*i-3])
 			#tagsDist.append(splitout[len(splitout)-2*i-2])
 			tagsNum.append(splitout[2*i+1])
 			tagsDist.append(splitout[2*i+2])
 
-		print("tagsNum = " + str(tagsNum))
-		print("tagsDist = " + str(tagsDist))
+#		print("tagsNum = " + str(tagsNum))
+#		print("tagsDist = " + str(tagsDist))
 
 		for i in range(int(numTagsFound)):
 			# check to see if the tag is within tagDistanceThresh
 			if (int(tagsDist[i]) <= int(params["TAGDISTANCETHRESH"])):
 				print("remote connect " + tagsNum[i])
 				remoteConnectStartTime = time.time()
+				# connect to the tag
 				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
 				#print(ser.inWaiting())
 				readOut = ser.readline().decode() + readOut
-				while (ser.inWaiting() != 0):
+#				while (ser.inWaiting() != 0):
 					#print(ser.inWaiting())
-					readOut = ser.readline().decode() + readOut
-					time.sleep(float(params["SLEEPTIME"]))
+#					readOut = ser.readline().decode() + readOut
+#					time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading RC: ", readOut)
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				#ser.flushInput()
+				time.sleep(float(params["SLEEPTIME"]))
 				remoteConnectTime = round(time.time() - remoteConnectStartTime, 3)
-				print("remoteConnectTime = " + str(remoteConnectTime))
+#				print("remoteConnectTime = " + str(remoteConnectTime))
 				# make sure echo and color is off on tags
 				ser.write("cli echo -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
@@ -303,24 +305,35 @@ while True:
 				time.sleep(float(params["SLEEPTIME"]))
 
 				# get the battery information
-				#print("obtaining battery level")
+				print("obtaining battery level")
 				readBattLvlStartTime = time.time()
 				ser.write("device battery_state\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = ""
-				while (ser.inWaiting() != 0):
-					#print(ser.inWaiting())
-					readOut = ser.readline().decode() + readOut
-					time.sleep(float(params["SLEEPTIME"]))
+				#while (ser.inWaiting() != 0):
+				#	#print(ser.inWaiting())
+				#	readOut = ser.readline().decode() + readOut
+				#	time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading BAT: ", readOut)
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				strOut = "".join(readOut)
+				readOut = strOut
+				print(readOut)
 
 				readBattLvlTime = round(time.time() - readBattLvlStartTime, 3)
 				print("readBattLvlTime = " + str(readBattLvlTime))
 				#print("Read all battery data...")
 				# will probably need to do some error checking on the data
 				batt_splitout = readOut.split()
-				battery_level = batt_splitout[len(batt_splitout)-3]
-
+				print(batt_splitout)
+				# battery % is 4th item in array (base 0) if 'device' is the first element
+				# sometimes we read 'level' as the first item which means 'device' is missing
+				# in this case, the battery % is stored in the second item base 0
+				if (batt_splitout[0] == "device"):
+					battery_level = batt_splitout[3]
+				else:
+					battery_level = batt_splitout[1]
+				print("battery level = " + str(battery_level))
 				# list the files available
 				#print("listing the files available on tag")
 				readFilesStartTime = time.time()
@@ -328,11 +341,15 @@ while True:
 				time.sleep(float(params["SLEEPTIME"]))
 				#print("Reading log data...")
 				readOut = ""
-				while (ser.inWaiting() != 0):
-					#print(ser.inWaiting())
-					readOut = ser.readline().decode() + readOut
-					time.sleep(float(params["SLEEPTIME"]))
+				#while (ser.inWaiting() != 0):
+				#	#print(ser.inWaiting())
+				#	readOut = ser.readline().decode() + readOut
+				#	time.sleep(float(params["SLEEPTIME"]))
 					#print("Reading FS: ", readOut)
+
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				strOut = "".join(readOut)
+				readOut = strOut
 
 				readFilesTime = round(time.time() - readFilesStartTime, 3)
 				print("readFilesTime = " + str(readFilesTime))
@@ -348,18 +365,19 @@ while True:
 				if len(splitout) <= 5:
 					print("No data on the tag to read...")
 				else:
-					# assume that the last 4 values of splitout are:
-					# 'DIR', '..', 'DIR', '.'
+					# assume that the first 4 values of splitout are:
+					# 'DIR', '.', 'DIR', '..'
 					print("Data on the tag to read...")
 					# assume that the file name data will be from locations 2 to length-5 in base 0
-					print("length of splitout = " + str((len(splitout))))
+					print("length of filename splitout = " + str((len(splitout))))
 					fileNameArray = []
 					for j in range(len(splitout)-7+1):
-						#print("j="+str(j)+" len="+str(len(splitout)))
-						splt_str = str(splitout[2+j])
-						#print(splt_str)
+						print("j="+str(j)+" len="+str(len(splitout)))
+						splt_str = str(splitout[4+j])
+						print(splt_str)
 						# check if string is a filename by looking at extension
 						if (splt_str.endswith(".txt")):
+							print("Found a .txt file.")
 							fileNameArray.append(splt_str)
 							fn_t = splt_str[0:len(splt_str)-4]+".000Z"
 							# convert the ISO 8601 time to unix
@@ -377,9 +395,11 @@ while True:
 							readFileDataTime = round(time.time() - readFileDataStartTime, 3)
 							print("readFileDataTime = " + str(readFileDataTime))
 							splitoutData = readOut.split()
+							print(splitoutData)
 							alertData = splitoutData[1]
+							print(alertData)
 							splitAlert = alertData.split(',')
-							#print(splitAlert)
+							print(splitAlert)
 							alertTime = int(splitAlert[2]) + int(t_in_sec)
 							currentTime = int(time.time())
 
@@ -423,7 +443,7 @@ while True:
 				print("disconnectTime = " + str(disconnectTime))
 			else:
 				print("No tags found within threshold distance.")
-	print ("Restart")
+#	print ("Restart")
 	ser.flush() #flush the buffer
 	totalTime = round(time.time() - totalStartTime, 3)
 	print("totalTime = " + str(totalTime))
@@ -431,7 +451,7 @@ while True:
 	# Check against time threshold to send gateway ping
 	# if the difference in time is > pingTimerThresh, send the ping message
 	# and set the current and previous times equal to each other
-	print("Time difference = " + str(currentPingTime - previousPingTime))
+#	print("Time difference = " + str(currentPingTime - previousPingTime))
 	if (currentPingTime - previousPingTime) > int(params["PINGTIMERTHRESH"]):
 		previousPingTime = currentPingTime
 		jobj = {
