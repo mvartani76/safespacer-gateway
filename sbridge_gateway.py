@@ -16,7 +16,7 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.25
+CODE_VERSION = 0.26
 
 # initialize debug time variables
 readRemoteTime = 0
@@ -167,13 +167,6 @@ while ser.inWaiting() != 0:
 	readOut = ser.readline().decode() + readOut
 	time.sleep(float(params["SLEEPTIME"]))
 
-#readOut = []
-#waiting = ser.in_waiting
-#readOut += [chr(c) for c in ser.read(waiting)]
-#print(readOut)
-#r1 = ReadLine.ReadLine(ser)
-#readOut = r1.readline()
-
 print(float(params["SLEEPTIME"]))
 
 splitout = readOut.split()
@@ -212,36 +205,21 @@ while True:
 	totalStartTime = time.time()
 	ser.flushInput()
 	time.sleep(float(params["SLEEPTIME"]))
-#	print ("Writing: ",  commandToSend)
+
 	readRemoteStartTime = time.time()
 	ser.write(commandToSend.encode())
 	time.sleep(float(params["SLEEPTIME"]))
 
-#	print ("Attempt to Read remote list")
-	#readOut = ""
-	#while ser.inWaiting() != 0:
-		#print(ser.inWaiting())
-	#	readOut = ser.readline().decode() + readOut
-		# first line should return # of tags detected
-	#	time.sleep(float(params["SLEEPTIME"]))
-		#print ("Reading: ", readOut)
-
-
-	readOut = []
-	#waiting = ser.in_waiting
-	#print(waiting)
+	print ("Attempt to Read remote list...")
 	readOut = [chr(c) for c in ser.read(ser.in_waiting)]
-#	print(readOut)
 	strOut = "".join(readOut)
 	readOut = strOut
-#	print(readOut)
 
 	readRemoteTime = round(time.time() - readRemoteStartTime, 3)
 #	print("readRemoteTime = " + str(readRemoteTime))
-	#print("read all data")
+
 	splitout = readOut.split()
-#	print(splitout)
-#	print(len(splitout))
+
 	# if length of splitout = 0, there is an error so should flush data and restart loop
 	if len(splitout) < 1:
 		print("Length of splitout < 1, something not right...")
@@ -252,6 +230,18 @@ while True:
 		time.sleep(float(params["LONGSLEEPTIME"]))
 		ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
 		time.sleep(float(params["SLEEPTIME"]))
+
+		# Send error message to AWS
+		jobj = {
+			"time": str(int(time.time())),
+			"error": "LSPL<1",
+			"S-Bridge": sbridgeID,
+			"RPi-GW": clientId,
+			"CustomerID": customerID,
+			"sw_version": CODE_VERSION
+			}
+		jsonOutput = json.dumps(jobj)
+		myAWSIoTMQTTClient.publishAsync(pingTopic, jsonOutput, 1, ackCallback=customPubackCallback)
 
 	else:
 		# Check to make sure that numTagsFound is an integer value
@@ -267,24 +257,31 @@ while True:
 			time.sleep(float(params["LONGSLEEPTIME"]))
 			ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
 			time.sleep(float(params["SLEEPTIME"]))
+
+			# Send error message to AWS
+			jobj = {
+				"time": str(int(time.time())),
+				"error": "NUMTAGSNOTINT",
+				"S-Bridge": sbridgeID,
+				"RPi-GW": clientId,
+				"CustomerID": customerID,
+				"sw_version": CODE_VERSION
+				}
+			jsonOutput = json.dumps(jobj)
+			myAWSIoTMQTTClient.publishAsync(pingTopic, jsonOutput, 1, ackCallback=customPubackCallback)
+
+
 	# Only attempt to connect to tags if we have found some so if
 	# there are no tags found, go back to the beginning of loop (or sleep)
 	if (numTagsFound < 1):
-#		print("No tags found...")
-		i=0
+		print("No tags found...")
 	else:
 		tagsNum = []
 		tagsDist = []
 		# loop through the number of tags in the list
 		for i in range(int(numTagsFound)):
-#			print(i)
-			#tagsNum.append(splitout[len(splitout)-2*i-3])
-			#tagsDist.append(splitout[len(splitout)-2*i-2])
 			tagsNum.append(splitout[2*i+1])
 			tagsDist.append(splitout[2*i+2])
-
-#		print("tagsNum = " + str(tagsNum))
-#		print("tagsDist = " + str(tagsDist))
 
 		for i in range(int(numTagsFound)):
 			ser.flushInput()
@@ -293,40 +290,42 @@ while True:
 				print("remote connect " + tagsNum[i])
 				remoteConnectStartTime = time.time()
 				# connect to the tag
-				ser.write(("remote connect " + str(tagsNum[i]) + "\r\n").encode())
+				ser.write(("remote connect " + str(tagsNum[i]) + "\r").encode())
 				#time.sleep(float(params["SLEEPTIME"]))
+				# observed that this nees to be a little longer to make sure the following commands are sent
+				# to the tags so we need to be sure the tag is connected before sending the next commands
 				time.sleep(0.75)
-				readOut = ""
-				#print(ser.inWaiting())
-				#readOut = ser.readline().decode() + readOut
-#				while (ser.inWaiting() != 0):
-					#print(ser.inWaiting())
-#					readOut = ser.readline().decode() + readOut
-#					time.sleep(float(params["SLEEPTIME"]))
-					#print("Reading RC: ", readOut)
+
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				splitout = strOut.split()
 				print("array after remote connect... " + str(splitout))
 				ser.flushOutput()
 				time.sleep(float(params["SLEEPTIME"]))
+
 				remoteConnectTime = round(time.time() - remoteConnectStartTime, 3)
 #				print("remoteConnectTime = " + str(remoteConnectTime))
 				# make sure echo and color is off on tags
-				print("turning off tag echo...")
-				ser.write("cli echo -s off\r\n".encode())
-				time.sleep(float(params["SLEEPTIME"]))
-				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
-				strOut = "".join(readOut)
-				readOut = strOut
-				print("array after echo... " + str(readOut))
+
 				print("turning off tag colors...")
 				ser.write("cli colors -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
+
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
 				print("array after cli colors..." + str(readOut))
+
+				print("turning off tag echo...")
+				ser.write("cli echo -s off\r\n".encode())
+				time.sleep(float(params["SLEEPTIME"]))
+
+				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+				strOut = "".join(readOut)
+				readOut = strOut
+				print(readOut)
+				print("array after cli echo..." + str(readOut))
+
 				# set the tags date/time
 				named_tuple = time.localtime()
 				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
@@ -334,7 +333,7 @@ while True:
 				ser.write(("device datetime -s " + time_string + "\r\n").encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				#print("enabling contact tracing")
-				ser.write("contact log -s on\r\n".encode())
+				ser.write("contact log -s on\r".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				#print("flushing input...")
 				ser.flushInput()
@@ -345,16 +344,10 @@ while True:
 				readBattLvlStartTime = time.time()
 				ser.write("device battery_state\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
-				readOut = ""
-				#while (ser.inWaiting() != 0):
-				#	#print(ser.inWaiting())
-				#	readOut = ser.readline().decode() + readOut
-				#	time.sleep(float(params["SLEEPTIME"]))
-					#print("Reading BAT: ", readOut)
+
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
-				#print(readOut)
 
 				readBattLvlTime = round(time.time() - readBattLvlStartTime, 3)
 				print("readBattLvlTime = " + str(readBattLvlTime))
@@ -376,13 +369,7 @@ while True:
 				time.sleep(float(params["SLEEPTIME"]))
 				ser.write("fs ls /logs\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
-				#print("Reading log data...")
-				readOut = ""
-				#while (ser.inWaiting() != 0):
-				#	#print(ser.inWaiting())
-				#	readOut = ser.readline().decode() + readOut
-				#	time.sleep(float(params["SLEEPTIME"]))
-					#print("Reading FS: ", readOut)
+
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
@@ -407,6 +394,8 @@ while True:
 					# assume that the file name data will be from locations 2 to length-5 in base 0
 					print("length of filename splitout = " + str((len(splitout))))
 					fileNameArray = []
+					# zero out # of files found on tag
+					numFiles = 0
 					for j in range(len(splitout)-5):
 						print("j="+str(j)+" len="+str(len(splitout)))
 						splt_str = str(splitout[4+j])
@@ -414,6 +403,8 @@ while True:
 						# check if string is a filename by looking at extension
 						if (splt_str.endswith(".txt")):
 							print("Found a .txt file.")
+							# increment number of files found on tag
+							numFiles = numFiles + 1
 							ser.flushInput()
 							ser.flushOutput()
 							fileNameArray.append(splt_str)
@@ -425,11 +416,7 @@ while True:
 							ser.write(("fs read /logs/" + str(splt_str) + " -f ascii\r\n").encode())
 							time.sleep(float(params["SLEEPTIME"]))
 							readOut = ""
-							#while (ser.inWaiting() != 0):
-							#	#print(ser.inWaiting())
-							#	readOut = ser.readline().decode() + readOut
-							#	time.sleep(float(params["SLEEPTIME"]))
-								#print("Reading read: " + str(readOut))
+
 							readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 							strOut = "".join(readOut)
 							readOut = strOut
@@ -453,6 +440,21 @@ while True:
 							alertTime = int(splitAlert[2]) + int(t_in_sec)
 							currentTime = int(time.time())
 
+							# remove file from device since we have just sent it to AWS
+							#print("Removing " + str(splt_str))
+							removeFileStartTime = time.time()
+							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
+							time.sleep(float(params["SLEEPTIME"]))
+
+							readOut = [chr(c) for c in ser.read(ser.in_waiting)]
+							ser.flushInput()
+							removeFileTime = round(time.time() - removeFileStartTime, 3)
+							print("removeFileTime = " + str(removeFileTime))
+
+							# totalTime here is not actually the total time but everything minus the disconnect
+							# but we want to capture some itme information when sending AWS message
+							totalTime = round(time.time() - totalStartTime, 3)
+
 							jobj = {
 								"tag1": tagsNum[i],
 								"tag2": splitAlert[0],
@@ -473,25 +475,11 @@ while True:
 								"readfiledatatime": str(readFileDataTime),
 								"removefiletime": str(removeFileTime),
 								"disconnecttime": str(disconnectTime),
-								"totaltime": str(totalTime)
+								"totaltime": str(totalTime),
+								"fileNum": str(numFiles)
 								}
 							jsonOutput = json.dumps(jobj)
 							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
-							# remove file from device since we have just sent it to AWS
-							#print("Removing " + str(splt_str))
-							removeFileStartTime = time.time()
-							ser.write(("fs rm logs/" + str(splt_str) +"\r\n").encode())
-							time.sleep(float(params["SLEEPTIME"]))
-							readOut = ""
-							#while (ser.inWaiting() != 0):
-                                                        #        #print(ser.inWaiting())
-                                                        #        readOut = ser.readline().decode() + readOut
-                                                        #        time.sleep(float(params["SLEEPTIME"]))
-                                                        #        #print("Reading rm: " + str(readOut))
-							readOut = [chr(c) for c in ser.read(ser.in_waiting)]
-							ser.flushInput()
-							removeFileTime = round(time.time() - removeFileStartTime, 3)
-							print("removeFileTime = " + str(removeFileTime))
 
 					print(fileNameArray)
 				# need to disconnect from the device
