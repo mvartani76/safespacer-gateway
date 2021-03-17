@@ -16,7 +16,18 @@ dotenv.load_dotenv()
 SERIALPORT = "/dev/ttyUSB0"
 BAUDRATE = 921600
 
-CODE_VERSION = 0.24
+CODE_VERSION = 0.25
+
+# initialize debug time variables
+readRemoteTime = 0
+remoteConnectTime = 0
+readBattLvlTime = 0
+readFilesTime = 0
+readFileDataTime = 0
+removeFileTime = 0
+disconnectTime = 0
+totalTime = 0
+
 
 # AWS IoT Code
 # General message notification callback
@@ -53,7 +64,7 @@ def customPubackCallback(mid):
 
 # Create Params Dict to store parameter values
 # Use default values just in case
-params = {"SLEEPTIME":0.5, "TAGDISTANCETHRESH":1500, "PINGTIMERTHRESH":900}
+params = {"SLEEPTIME":0.5, "LONGSLEEPTIME":2.0, "TAGDISTANCETHRESH":1500, "PINGTIMERTHRESH":900}
 
 # Read in command-line parameters from .env file
 host = os.getenv("HOST")
@@ -72,6 +83,7 @@ pingTopic = os.getenv("PINGTOPIC")
 paramSetTopic = os.getenv("PARAMSETTOPIC") + "/" + str(clientId)
 params["TAGDISTANCETHRESH"] = int(os.getenv("TAGDISTANCETHRESH"))
 params["SLEEPTIME"]  = float(os.getenv("SLEEPTIME"))
+params["LONGSLEEPTIME"] = float(os.getenv("LONGSLEEPTIME"))
 
 print(paramSetTopic)
 
@@ -236,6 +248,11 @@ while True:
 		numtTagsFound = -1
 		ser.flushInput()
 		time.sleep(float(params["SLEEPTIME"]))
+		ser.close()
+		time.sleep(float(params["LONGSLEEPTIME"]))
+		ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
+		time.sleep(float(params["SLEEPTIME"]))
+
 	else:
 		# Check to make sure that numTagsFound is an integer value
 		try:
@@ -245,6 +262,10 @@ while True:
 			print("NumTagsFound not an integer...")
 			numTagsFound = -1
 			ser.flushInput()
+			time.sleep(float(params["SLEEPTIME"]))
+			ser.close()
+			time.sleep(float(params["LONGSLEEPTIME"]))
+			ser = serial.Serial(SERIALPORT, baudrate = BAUDRATE, parity=serial.PARITY_NONE, stopbits=serial.STOPBITS_ONE, bytesize=serial.EIGHTBITS, timeout=1, write_timeout=1)
 			time.sleep(float(params["SLEEPTIME"]))
 	# Only attempt to connect to tags if we have found some so if
 	# there are no tags found, go back to the beginning of loop (or sleep)
@@ -286,8 +307,8 @@ while True:
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				splitout = strOut.split()
-				print(splitout)
-				ser.flushInput()
+				print("array after remote connect... " + str(splitout))
+				ser.flushOutput()
 				time.sleep(float(params["SLEEPTIME"]))
 				remoteConnectTime = round(time.time() - remoteConnectStartTime, 3)
 #				print("remoteConnectTime = " + str(remoteConnectTime))
@@ -298,14 +319,14 @@ while True:
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
-				print(readOut)
+				print("array after echo... " + str(readOut))
 				print("turning off tag colors...")
 				ser.write("cli colors -s off\r\n".encode())
 				time.sleep(float(params["SLEEPTIME"]))
 				readOut = [chr(c) for c in ser.read(ser.in_waiting)]
 				strOut = "".join(readOut)
 				readOut = strOut
-				print(readOut)
+				print("array after cli colors..." + str(readOut))
 				# set the tags date/time
 				named_tuple = time.localtime()
 				time_string = time.strftime("%Y-%m%dT%H:%M:%S",named_tuple)
@@ -443,7 +464,16 @@ while True:
 								"S-Bridge": sbridgeID,
 								"RPi-GW": clientId,
 								"CustomerID": customerID,
-								"sw_version": CODE_VERSION
+								"sw_version": CODE_VERSION,
+								"time": str(int(time.time())),
+								"readremotetime": str(readRemoteTime),
+								"remoteconnecttime": str(remoteConnectTime),
+								"readbattlvltime": str(readBattLvlTime),
+								"readfilestime": str(readFilesTime),
+								"readfiledatatime": str(readFileDataTime),
+								"removefiletime": str(removeFileTime),
+								"disconnecttime": str(disconnectTime),
+								"totaltime": str(totalTime)
 								}
 							jsonOutput = json.dumps(jobj)
 							myAWSIoTMQTTClient.publishAsync(alertTopic, jsonOutput, 1, ackCallback=customPubackCallback)
@@ -471,8 +501,10 @@ while True:
 				time.sleep(float(params["SLEEPTIME"]))
 				disconnectTime = round(time.time() - disconnectStartTime, 3)
 				print("disconnectTime = " + str(disconnectTime))
+				totalTime = round(time.time() - totalStartTime, 3)
 			else:
 				print("No tags found within threshold distance.")
+				totalTime = round(time.time() - totalStartTime, 3)
 #	print ("Restart")
 	ser.flush() #flush the buffer
 	totalTime = round(time.time() - totalStartTime, 3)
@@ -487,6 +519,13 @@ while True:
 		jobj = {
 			"time": str(int(time.time())),
 			"readremotetime": str(readRemoteTime),
+			"remoteconnecttime": str(remoteConnectTime),
+			"readbattlvltime": str(readBattLvlTime),
+			"readfilestime": str(readFilesTime),
+			"readfiledatatime": str(readFileDataTime),
+			"removefiletime": str(removeFileTime),
+			"disconnecttime": str(disconnectTime),
+			"totaltime": str(totalTime),
 			"S-Bridge": sbridgeID,
 			"RPi-GW": clientId,
 			"CustomerID": customerID,
